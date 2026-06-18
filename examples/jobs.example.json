@@ -1,0 +1,40 @@
+{
+  "jobs": [
+    {
+      "external_id": "example-001",
+      "source": "manual_json",
+      "source_url": "https://example.com/jobs/senior-director-growth",
+      "apply_url": "https://example.com/apply/senior-director-growth",
+      "company": "Northstar Systems",
+      "title": "Senior Director, Growth Marketing & GTM Systems",
+      "department": "Marketing",
+      "location": "Remote - United States",
+      "remote_type": "remote",
+      "salary_min": 185000,
+      "salary_max": 225000,
+      "currency": "USD",
+      "description": "Lead growth marketing, demand generation, lifecycle marketing, and AI transformation across the go-to-market organization.",
+      "requirements": "Executive leadership, marketing operations, GTM strategy, and revenue systems experience.",
+      "responsibilities": "Build the function, align the leadership team, and improve pipeline measurement.",
+      "posted_at": "2026-06-12T14:00:00+00:00"
+    },
+    {
+      "external_id": "example-002",
+      "source": "manual_json",
+      "source_url": "https://example.com/jobs/coordinator",
+      "apply_url": "https://example.wd5.myworkdayjobs.com/job/coordinator",
+      "company": "Example Retail",
+      "title": "Marketing Coordinator",
+      "department": "Marketing",
+      "location": "Onsite - Phoenix, AZ",
+      "remote_type": "onsite",
+      "salary_min": 55000,
+      "salary_max": 70000,
+      "currency": "USD",
+      "description": "Coordinate events, update spreadsheets, and support the marketing manager.",
+      "requirements": "One year of experience.",
+      "responsibilities": "Administrative support and scheduling.",
+      "posted_at": "2026-05-01T14:00:00+00:00"
+    }
+  ]
+}

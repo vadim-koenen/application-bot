@@ -1,0 +1,62 @@
+target_titles:
+  - director
+  - senior director
+  - sr director
+  - vice president
+  - vp
+  - head of
+  - executive
+
+reject_titles:
+  - coordinator
+  - specialist
+  - associate
+  - manager
+
+target_keywords:
+  - growth marketing
+  - demand generation
+  - revenue systems
+  - gtm systems
+  - go-to-market
+  - gtm strategy
+  - marketing operations
+  - lifecycle marketing
+  - performance marketing
+  - ai transformation
+
+reject_keywords:
+  - account executive
+  - sales representative
+  - cold calling
+
+location_preferences:
+  remote_us:
+    - remote
+    - united states
+    - us remote
+    - remote - us
+  dfw:
+    - dallas
+    - plano
+    - dfw
+    - fort worth
+
+salary_minimums:
+  default: 140000
+  director: 150000
+  senior_director: 175000
+  vp: 200000
+
+source_policy:
+  greenhouse: AUTO_PACKET_ONLY
+  lever: AUTO_PACKET_ONLY
+  ashby: AUTO_PACKET_ONLY
+  linkedin_review_queue: REVIEW_REQUIRED
+  indeed_connector: BLOCKED
+  zip_connector: BLOCKED
+
+dry_run: true
+live_apply_enabled: false
+database_path: data/application_bot.sqlite
+export_path: exports

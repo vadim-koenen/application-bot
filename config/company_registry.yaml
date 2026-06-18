@@ -1,0 +1,13 @@
+companies:
+  - name: Example Greenhouse Company
+    ats: greenhouse
+    board_token: example
+    enabled: false
+  - name: Example Lever Company
+    ats: lever
+    site: example
+    enabled: false
+  - name: Example Ashby Company
+    ats: ashby
+    board_name: example
+    enabled: false
