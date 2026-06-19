@@ -9,8 +9,10 @@ SQLite is the default system of record. The database path comes from `config/def
 - `application_packets`: exported packet path and serialized packet.
 - `applications`: confirmed application activity.
 - `events`: append-oriented job activity such as discovery, scoring, export, and marking applied.
-- `confirmations`: reserved for Gmail or other confirmation ingestion.
+- `confirmations`: imported message metadata and workflow classification.
 - `source_runs`: scan status, counts, and failure details.
+- `email_queue`: packet-backed email opportunities, preview paths, compliance
+  flags, and send state.
 
 ## Deduplication
 
@@ -37,3 +39,7 @@ Review-queue adapters may enter as `REVIEW_REQUIRED`. `BLOCKED` is reserved for 
 ## Reporting
 
 `application-bot report` returns totals, status counts, verdict counts, packet/application counts, and the top twenty scored jobs. `--out` writes the same report as JSON.
+
+`application-bot daily-report` writes Markdown and JSON with discoveries,
+scores, verdicts, packet and preview counts, submitted applications, compliance
+blocks, and recommended next actions.

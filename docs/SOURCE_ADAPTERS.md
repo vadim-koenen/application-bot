@@ -68,7 +68,21 @@ Accept connector-fed or user-supplied content only. Direct automation is blocked
 
 ## Registry scans
 
-`config/company_registry.yaml` stores company-specific public board identifiers. Only entries with `enabled: true` and a matching `ats` are scanned. Sample entries are disabled and are not expected to represent real companies.
+`config/company_registry.yaml` contains inert examples.
+`config/live_company_registry.yaml` contains a curated operational starting
+list. Highspot is the only initially enabled board after a successful public
+GET validation on June 19, 2026. Turn other companies on one at a time:
+
+```yaml
+- name: Example
+  ats: greenhouse
+  board_token: example
+  enabled: true
+```
+
+`scan --registry ... --dry-run` and `run-dry-pipeline` use public GET endpoints
+only. A failing board records a failed `source_run`; other enabled boards
+continue and the report marks the network scan partial or failed.
 
 ## Adding an adapter
 

@@ -1,0 +1,57 @@
+# Curated public ATS board identifiers for dry-run discovery.
+# Highspot is enabled because its public GET board was validated on 2026-06-19.
+# All other sources remain disabled until enabled individually after validation.
+companies:
+  - name: Figma
+    ats: greenhouse
+    board_token: figma
+    focus:
+      - growth marketing
+      - lifecycle
+      - marketing operations
+    enabled: false
+
+  - name: Datadog
+    ats: greenhouse
+    board_token: datadog
+    focus:
+      - demand generation
+      - growth
+      - marketing operations
+    enabled: false
+
+  - name: Highspot
+    ats: lever
+    site: highspot
+    focus:
+      - go-to-market
+      - revenue systems
+      - demand generation
+    enabled: true
+
+  - name: Outreach
+    ats: lever
+    site: outreach
+    focus:
+      - revenue systems
+      - GTM strategy
+      - marketing
+    enabled: false
+
+  - name: Ramp
+    ats: ashby
+    board_name: ramp
+    focus:
+      - growth marketing
+      - lifecycle
+      - GTM systems
+    enabled: false
+
+  - name: Deel
+    ats: ashby
+    board_name: deel
+    focus:
+      - demand generation
+      - marketing operations
+      - growth
+    enabled: false

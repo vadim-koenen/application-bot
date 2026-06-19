@@ -21,9 +21,27 @@ class EmailToApplyAdapter(ManualJsonAdapter):
         body: str,
         attachments: list[str] | None = None,
         live_apply_enabled: bool = False,
+        live_email_send_enabled: bool = False,
+        approval_phrase: str = "",
+        configured_approval_phrase: str = "",
     ) -> dict[str, Any]:
         if not live_apply_enabled:
             return {"sent": False, "dry_run": True, "reason": "LIVE_APPLY_ENABLED is false"}
+        if not live_email_send_enabled:
+            return {
+                "sent": False,
+                "dry_run": True,
+                "reason": "LIVE_EMAIL_SEND_ENABLED is false",
+            }
+        if (
+            not configured_approval_phrase
+            or approval_phrase != configured_approval_phrase
+        ):
+            return {
+                "sent": False,
+                "dry_run": True,
+                "reason": "Email approval phrase is missing or does not match",
+            }
         required = ["SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "FROM_EMAIL"]
         missing = [name for name in required if not os.getenv(name)]
         if not recipient or missing:

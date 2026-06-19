@@ -47,6 +47,23 @@ class SubmissionDecision(StrEnum):
     BLOCKED = "BLOCKED"
 
 
+class EmailQueueStatus(StrEnum):
+    QUEUED = "QUEUED"
+    PREVIEW_GENERATED = "PREVIEW_GENERATED"
+    SENT = "SENT"
+    BLOCKED = "BLOCKED"
+    ERROR = "ERROR"
+
+
+class ConfirmationStatus(StrEnum):
+    CONFIRMATION_RECEIVED = "confirmation_received"
+    RECRUITER_REPLY = "recruiter_reply"
+    ASSESSMENT_REQUEST = "assessment_request"
+    REJECTION = "rejection"
+    INTERVIEW_REQUEST = "interview_request"
+    FOLLOW_UP_NEEDED = "follow_up_needed"
+
+
 @dataclass(slots=True)
 class Job:
     external_id: str
@@ -132,3 +149,22 @@ class ApplicationPacket:
     recommended_next_action: str
     policy: str
     created_at: str = field(default_factory=utc_now)
+
+
+@dataclass(slots=True)
+class EmailQueueItem:
+    id: int
+    job_id: int
+    packet_id: int
+    recipient: str
+    status: str
+    compliance_flags_json: str
+    preview_path: str | None
+    error: str | None
+    queued_at: str
+    updated_at: str
+    sent_at: str | None
+    company: str = ""
+    title: str = ""
+    apply_url: str = ""
+    packet_json: str = "{}"

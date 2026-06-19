@@ -6,11 +6,13 @@ All automated tests are offline. ATS responses are injected as mocked JSON; no e
 
 ```bash
 python3 -m pytest -q
-python3 -m application_bot.main init-db --db /tmp/application_bot_test.sqlite
-python3 -m application_bot.main scan --source manual_json --input examples/jobs.example.json --db /tmp/application_bot_test.sqlite
-python3 -m application_bot.main score --db /tmp/application_bot_test.sqlite
-python3 -m application_bot.main export-packets --db /tmp/application_bot_test.sqlite --out /tmp/application_bot_packets
-python3 -m application_bot.main report --db /tmp/application_bot_test.sqlite
+python3 -m application_bot.main --help
+python3 -m application_bot.main init-db --db /tmp/application_bot_ops.sqlite
+python3 -m application_bot.main run-dry-pipeline --registry config/live_company_registry.yaml --db /tmp/application_bot_ops.sqlite --out /tmp/application_bot_ops_exports --limit 25
+python3 -m application_bot.main queue-email-applications --db /tmp/application_bot_ops.sqlite
+python3 -m application_bot.main send-email-applications --db /tmp/application_bot_ops.sqlite --dry-run
+python3 -m application_bot.main daily-report --db /tmp/application_bot_ops.sqlite --out /tmp/application_bot_ops_report
+python3 -m application_bot.main report --db /tmp/application_bot_ops.sqlite
 PATH="$PWD:$PATH" application-bot --help
 ```
 
@@ -31,7 +33,14 @@ alias. If your environment maps `python` to Python 3.11+, either spelling works.
 - LinkedIn review routing.
 - Indeed and ZipRecruiter automation blocking.
 - CAPTCHA, login, legal-question, and evasion safeguards.
+- Mocked Greenhouse, Lever, and Ashby operational pipelines.
+- Graceful failed/partial network source runs.
+- Email queue, previews, live flags, and approval phrase.
+- Scheduler run-once and daily report generation.
+- Gmail fixture classification.
 
 ## Safe test cleanup
 
-Verification uses `/tmp/application_bot_test.sqlite` and `/tmp/application_bot_packets`. Removing those test artifacts does not affect the repository or configured CRM.
+Verification uses `/tmp/application_bot_ops.sqlite`,
+`/tmp/application_bot_ops_exports`, and `/tmp/application_bot_ops_report.*`.
+Removing those test artifacts does not affect the repository or configured CRM.

@@ -1,0 +1,46 @@
+{
+  "messages": [
+    {
+      "id": "msg-confirmation",
+      "from": "jobs@example.com",
+      "subject": "Application received",
+      "body": "Thank you for applying. We received your application.",
+      "received_at": "2026-06-19T10:00:00Z"
+    },
+    {
+      "id": "msg-recruiter",
+      "from": "recruiter@example.com",
+      "subject": "Your background",
+      "body": "I am a recruiter interested in speaking about this opportunity.",
+      "received_at": "2026-06-19T11:00:00Z"
+    },
+    {
+      "id": "msg-assessment",
+      "from": "assessment@example.com",
+      "subject": "Next step: assessment",
+      "body": "Please complete the take-home case study.",
+      "received_at": "2026-06-19T12:00:00Z"
+    },
+    {
+      "id": "msg-rejection",
+      "from": "jobs@example.com",
+      "subject": "Application update",
+      "body": "Unfortunately, we decided not to proceed.",
+      "received_at": "2026-06-19T13:00:00Z"
+    },
+    {
+      "id": "msg-interview",
+      "from": "talent@example.com",
+      "subject": "Interview availability",
+      "body": "We would like to invite you to interview.",
+      "received_at": "2026-06-19T14:00:00Z"
+    },
+    {
+      "id": "msg-follow-up",
+      "from": "person@example.com",
+      "subject": "Checking in",
+      "body": "Here is an update with no recognized workflow signal.",
+      "received_at": "2026-06-19T15:00:00Z"
+    }
+  ]
+}

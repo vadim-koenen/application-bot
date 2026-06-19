@@ -6,7 +6,7 @@ from pathlib import Path
 import sqlite3
 from typing import Any, Iterator
 
-from application_bot.models import Job, ScoreResult, utc_now
+from application_bot.models import EmailQueueItem, Job, ScoreResult, utc_now
 
 
 SCHEMA = """
@@ -89,6 +89,9 @@ CREATE TABLE IF NOT EXISTS confirmations (
     source TEXT NOT NULL,
     external_id TEXT,
     subject TEXT,
+    sender TEXT,
+    body TEXT,
+    classification TEXT,
     received_at TEXT,
     raw_json TEXT NOT NULL DEFAULT '{}',
     created_at TEXT NOT NULL,
@@ -105,6 +108,24 @@ CREATE TABLE IF NOT EXISTS source_runs (
     jobs_written INTEGER NOT NULL DEFAULT 0,
     details_json TEXT NOT NULL DEFAULT '{}'
 );
+
+CREATE TABLE IF NOT EXISTS email_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    job_id INTEGER NOT NULL UNIQUE,
+    packet_id INTEGER NOT NULL,
+    recipient TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'QUEUED',
+    compliance_flags_json TEXT NOT NULL DEFAULT '[]',
+    preview_path TEXT,
+    error TEXT,
+    queued_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    sent_at TEXT,
+    FOREIGN KEY(job_id) REFERENCES jobs(id),
+    FOREIGN KEY(packet_id) REFERENCES application_packets(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_queue_status ON email_queue(status);
 """
 
 
@@ -127,6 +148,29 @@ class Database:
     def initialize(self) -> None:
         with self.connect() as connection:
             connection.executescript(SCHEMA)
+            self._ensure_column(connection, "confirmations", "sender", "TEXT")
+            self._ensure_column(connection, "confirmations", "body", "TEXT")
+            self._ensure_column(connection, "confirmations", "classification", "TEXT")
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_confirmations_classification
+                ON confirmations(classification)
+                """
+            )
+
+    @staticmethod
+    def _ensure_column(
+        connection: sqlite3.Connection,
+        table: str,
+        column: str,
+        declaration: str,
+    ) -> None:
+        columns = {
+            str(row["name"])
+            for row in connection.execute(f"PRAGMA table_info({table})").fetchall()
+        }
+        if column not in columns:
+            connection.execute(f"ALTER TABLE {table} ADD COLUMN {column} {declaration}")
 
     def start_source_run(self, source: str, details: dict[str, Any] | None = None) -> int:
         with self.connect() as connection:
@@ -163,6 +207,27 @@ class Database:
                     jobs_written,
                     json.dumps(details or {}, sort_keys=True),
                     run_id,
+                ),
+            )
+
+    def record_event(
+        self,
+        event_type: str,
+        *,
+        job_id: int | None = None,
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        with self.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO events(job_id, event_type, details_json, created_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    job_id,
+                    event_type,
+                    json.dumps(details or {}, sort_keys=True),
+                    utc_now(),
                 ),
             )
 
@@ -335,6 +400,214 @@ class Database:
                 (job_id, json.dumps({"path": export_path}), utc_now()),
             )
 
+    def latest_packet(self, job_id: int) -> sqlite3.Row | None:
+        with self.connect() as connection:
+            return connection.execute(
+                """
+                SELECT * FROM application_packets
+                WHERE job_id = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (job_id,),
+            ).fetchone()
+
+    def queue_email(
+        self,
+        job_id: int,
+        packet_id: int,
+        recipient: str,
+        compliance_flags: list[str] | None = None,
+    ) -> tuple[int, bool]:
+        now = utc_now()
+        with self.connect() as connection:
+            existing = connection.execute(
+                "SELECT id FROM email_queue WHERE job_id = ?", (job_id,)
+            ).fetchone()
+            connection.execute(
+                """
+                INSERT INTO email_queue(
+                    job_id, packet_id, recipient, status,
+                    compliance_flags_json, queued_at, updated_at
+                ) VALUES (?, ?, ?, 'QUEUED', ?, ?, ?)
+                ON CONFLICT(job_id) DO UPDATE SET
+                    packet_id = excluded.packet_id,
+                    recipient = excluded.recipient,
+                    compliance_flags_json = excluded.compliance_flags_json,
+                    updated_at = excluded.updated_at,
+                    status = CASE
+                        WHEN email_queue.status = 'SENT' THEN email_queue.status
+                        ELSE 'QUEUED'
+                    END,
+                    error = NULL
+                """,
+                (
+                    job_id,
+                    packet_id,
+                    recipient,
+                    json.dumps(compliance_flags or [], sort_keys=True),
+                    now,
+                    now,
+                ),
+            )
+            row = connection.execute(
+                "SELECT id FROM email_queue WHERE job_id = ?", (job_id,)
+            ).fetchone()
+            queue_id = int(row["id"])
+            if existing is None:
+                connection.execute(
+                    """
+                    INSERT INTO events(job_id, event_type, details_json, created_at)
+                    VALUES (?, 'EMAIL_QUEUED', ?, ?)
+                    """,
+                    (job_id, json.dumps({"recipient": recipient}), now),
+                )
+            return queue_id, existing is None
+
+    def list_email_queue(
+        self,
+        *,
+        statuses: set[str] | None = None,
+    ) -> list[EmailQueueItem]:
+        query = """
+            SELECT q.*, j.company, j.title, j.apply_url, p.packet_json
+            FROM email_queue q
+            JOIN jobs j ON j.id = q.job_id
+            JOIN application_packets p ON p.id = q.packet_id
+        """
+        parameters: list[Any] = []
+        if statuses:
+            placeholders = ",".join("?" for _ in statuses)
+            query += f" WHERE q.status IN ({placeholders})"
+            parameters.extend(sorted(statuses))
+        query += " ORDER BY q.id"
+        with self.connect() as connection:
+            rows = connection.execute(query, parameters).fetchall()
+        return [
+            EmailQueueItem(
+                id=int(row["id"]),
+                job_id=int(row["job_id"]),
+                packet_id=int(row["packet_id"]),
+                recipient=str(row["recipient"]),
+                status=str(row["status"]),
+                compliance_flags_json=str(row["compliance_flags_json"]),
+                preview_path=row["preview_path"],
+                error=row["error"],
+                queued_at=str(row["queued_at"]),
+                updated_at=str(row["updated_at"]),
+                sent_at=row["sent_at"],
+                company=str(row["company"]),
+                title=str(row["title"]),
+                apply_url=str(row["apply_url"]),
+                packet_json=str(row["packet_json"]),
+            )
+            for row in rows
+        ]
+
+    def mark_email_preview(self, queue_id: int, preview_path: str) -> None:
+        now = utc_now()
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT job_id FROM email_queue WHERE id = ?", (queue_id,)
+            ).fetchone()
+            if not row:
+                raise ValueError(f"Email queue item {queue_id} does not exist")
+            connection.execute(
+                """
+                UPDATE email_queue
+                SET status = 'PREVIEW_GENERATED', preview_path = ?,
+                    error = NULL, updated_at = ?
+                WHERE id = ?
+                """,
+                (preview_path, now, queue_id),
+            )
+            connection.execute(
+                """
+                INSERT INTO events(job_id, event_type, details_json, created_at)
+                VALUES (?, 'EMAIL_PREVIEW_GENERATED', ?, ?)
+                """,
+                (int(row["job_id"]), json.dumps({"path": preview_path}), now),
+            )
+
+    def mark_email_sent(self, queue_id: int) -> None:
+        now = utc_now()
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT job_id FROM email_queue WHERE id = ?", (queue_id,)
+            ).fetchone()
+            if not row:
+                raise ValueError(f"Email queue item {queue_id} does not exist")
+            connection.execute(
+                """
+                UPDATE email_queue
+                SET status = 'SENT', error = NULL, sent_at = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (now, now, queue_id),
+            )
+            connection.execute(
+                """
+                INSERT INTO applications(
+                    job_id, submission_mode, status, applied_at, notes, created_at
+                ) VALUES (?, 'EMAIL', 'APPLIED', ?, 'Email sent by guarded adapter', ?)
+                """,
+                (int(row["job_id"]), now, now),
+            )
+            connection.execute(
+                """
+                INSERT INTO events(job_id, event_type, details_json, created_at)
+                VALUES (?, 'EMAIL_SENT', '{}', ?)
+                """,
+                (int(row["job_id"]), now),
+            )
+
+    def mark_email_blocked(self, queue_id: int, reason: str) -> None:
+        with self.connect() as connection:
+            connection.execute(
+                """
+                UPDATE email_queue
+                SET status = 'BLOCKED', error = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (reason, utc_now(), queue_id),
+            )
+
+    def save_confirmation(
+        self,
+        *,
+        source: str,
+        external_id: str | None,
+        subject: str,
+        sender: str,
+        body: str,
+        classification: str,
+        received_at: str | None,
+        raw_payload: dict[str, Any],
+        job_id: int | None = None,
+    ) -> int:
+        with self.connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO confirmations(
+                    job_id, source, external_id, subject, sender, body,
+                    classification, received_at, raw_json, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    job_id,
+                    source,
+                    external_id,
+                    subject,
+                    sender,
+                    body,
+                    classification,
+                    received_at,
+                    json.dumps(raw_payload, sort_keys=True),
+                    utc_now(),
+                ),
+            )
+            return int(cursor.lastrowid)
+
     def mark_applied(self, job_id: int, notes: str = "") -> None:
         with self.connect() as connection:
             exists = connection.execute(
@@ -387,13 +660,112 @@ class Database:
             applications = connection.execute(
                 "SELECT COUNT(*) AS count FROM applications"
             ).fetchone()
+            email_queue = connection.execute(
+                "SELECT status, COUNT(*) AS count FROM email_queue GROUP BY status"
+            ).fetchall()
+            confirmations = connection.execute(
+                """
+                SELECT COALESCE(classification, 'unclassified') AS classification,
+                       COUNT(*) AS count
+                FROM confirmations
+                GROUP BY COALESCE(classification, 'unclassified')
+                """
+            ).fetchall()
+            source_runs = connection.execute(
+                """
+                SELECT status, COUNT(*) AS count
+                FROM source_runs
+                GROUP BY status
+                """
+            ).fetchall()
         return {
             "total_jobs": int(total["count"]),
             "by_status": {row["status"]: int(row["count"]) for row in by_status},
             "by_verdict": {row["verdict"]: int(row["count"]) for row in by_verdict},
             "packet_count": int(packets["count"]),
             "application_count": int(applications["count"]),
+            "email_queue": {
+                row["status"]: int(row["count"]) for row in email_queue
+            },
+            "confirmations": {
+                row["classification"]: int(row["count"]) for row in confirmations
+            },
+            "source_runs": {
+                row["status"]: int(row["count"]) for row in source_runs
+            },
             "top_jobs": [dict(row) for row in top_jobs],
+        }
+
+    def daily_metrics(self, day: str) -> dict[str, Any]:
+        prefix = f"{day}%"
+        with self.connect() as connection:
+            discovered = connection.execute(
+                """
+                SELECT COUNT(DISTINCT job_id) AS count
+                FROM events
+                WHERE event_type = 'JOB_DISCOVERED' AND created_at LIKE ?
+                """,
+                (prefix,),
+            ).fetchone()
+            scored = connection.execute(
+                """
+                SELECT COUNT(DISTINCT job_id) AS count
+                FROM events
+                WHERE event_type = 'JOB_SCORED' AND created_at LIKE ?
+                """,
+                (prefix,),
+            ).fetchone()
+            verdict_rows = connection.execute(
+                """
+                SELECT COALESCE(verdict, 'UNSCORED') AS verdict, COUNT(*) AS count
+                FROM jobs GROUP BY COALESCE(verdict, 'UNSCORED')
+                """
+            ).fetchall()
+            packet_count = connection.execute(
+                """
+                SELECT COUNT(*) AS count FROM events
+                WHERE event_type = 'PACKET_EXPORTED' AND created_at LIKE ?
+                """,
+                (prefix,),
+            ).fetchone()
+            preview_count = connection.execute(
+                """
+                SELECT COUNT(*) AS count FROM events
+                WHERE event_type = 'EMAIL_PREVIEW_GENERATED' AND created_at LIKE ?
+                """,
+                (prefix,),
+            ).fetchone()
+            applications = connection.execute(
+                """
+                SELECT COUNT(*) AS count FROM applications
+                WHERE applied_at LIKE ?
+                """,
+                (prefix,),
+            ).fetchone()
+            compliance_blocks = connection.execute(
+                """
+                SELECT COUNT(*) AS count FROM jobs
+                WHERE status = 'BLOCKED' OR verdict = 'BLOCKED'
+                """
+            ).fetchone()
+        verdicts = {row["verdict"]: int(row["count"]) for row in verdict_rows}
+        for verdict in (
+            "APPLY_PRIORITY",
+            "GOOD_FIT",
+            "MAYBE",
+            "NOT_WORTH_TIME",
+            "BLOCKED",
+        ):
+            verdicts.setdefault(verdict, 0)
+        return {
+            "date": day,
+            "jobs_discovered": int(discovered["count"]),
+            "jobs_scored": int(scored["count"]),
+            "verdicts": verdicts,
+            "packets_exported": int(packet_count["count"]),
+            "email_previews_generated": int(preview_count["count"]),
+            "applications_submitted": int(applications["count"]),
+            "compliance_blocks": int(compliance_blocks["count"]),
         }
 
     @staticmethod

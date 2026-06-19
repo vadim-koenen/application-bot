@@ -2,7 +2,10 @@
 
 ## Default posture
 
-`dry_run: true` and `LIVE_APPLY_ENABLED=false` are the defaults. Discovery, scoring, CRM updates, and packet generation may run autonomously. External application submission may not.
+`dry_run: true`, `LIVE_APPLY_ENABLED=false`, and
+`LIVE_EMAIL_SEND_ENABLED=false` are the defaults. Discovery, scoring, CRM
+updates, packet generation, email previews, imported confirmation parsing, and
+daily reports may run autonomously. External application submission may not.
 
 ## Decisions
 
@@ -28,6 +31,20 @@
 ## Mandatory human review
 
 CAPTCHA, login requirements, unknown legal attestations, unknown required questions, ambiguous consent, and unverified work-authorization or compensation answers require review.
+
+## Email live-send gates
+
+A future email send is blocked unless every condition is true:
+
+1. `live_apply_enabled=true`
+2. `LIVE_EMAIL_SEND_ENABLED=true`
+3. SMTP host, port, username, password, and from address exist
+4. The command approval phrase exactly matches `EMAIL_SEND_APPROVAL_PHRASE`
+5. The job has a recipient and saved packet
+6. The policy result is `AUTO_SUBMIT_EMAIL`
+7. No CAPTCHA, login, legal-attestation, consent, or unknown-question flag exists
+
+Possessing credentials alone never grants send authority.
 
 ## Absolute no-go boundaries
 

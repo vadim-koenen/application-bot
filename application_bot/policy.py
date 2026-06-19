@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import os
+import json
 from typing import Any
 
 from application_bot.compliance import prohibited_requested, review_triggers
-from application_bot.models import PolicyResult, SubmissionDecision
+from application_bot.models import Job, PolicyResult, SubmissionDecision
 
 
 def evaluate_submission_policy(
@@ -98,4 +99,54 @@ def evaluate_submission_policy(
         SubmissionDecision.REVIEW_REQUIRED,
         ["Unknown or ambiguous source defaults to human review."],
         True,
+    )
+
+
+def job_compliance_flags(job: Job) -> list[str]:
+    corpus = " ".join(
+        (
+            job.description,
+            job.requirements,
+            job.responsibilities,
+            job.raw_payload_json,
+        )
+    ).lower()
+    flags: list[str] = []
+    if "captcha" in corpus:
+        flags.append("captcha")
+    if "login required" in corpus or "create an account" in corpus:
+        flags.append("login_required")
+    if "legal attestation" in corpus:
+        flags.append("unknown_legal_attestation")
+    if "unknown required question" in corpus:
+        flags.append("unknown_required_question")
+    if "ambiguous consent" in corpus:
+        flags.append("ambiguous_consent")
+    return flags
+
+
+def job_recipient(job: Job) -> str | None:
+    if job.apply_url.lower().startswith("mailto:"):
+        return job.apply_url.split(":", 1)[1].split("?", 1)[0].strip() or None
+    try:
+        raw_payload = json.loads(job.raw_payload_json or "{}")
+    except json.JSONDecodeError:
+        return None
+    recipient = (
+        raw_payload.get("recipient")
+        or raw_payload.get("apply_email")
+        or raw_payload.get("email")
+    )
+    return str(recipient).strip() if recipient else None
+
+
+def evaluate_job_submission_policy(
+    job: Job,
+    config: dict[str, Any],
+) -> PolicyResult:
+    return evaluate_submission_policy(
+        job.source,
+        flags=job_compliance_flags(job),
+        live_apply_enabled=bool(config.get("live_apply_enabled")),
+        recipient=job_recipient(job),
     )

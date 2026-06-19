@@ -2,11 +2,13 @@
 
 ## Repository state
 
-- Branch: `feature/application-bot-m1-m5-core`
+- Base branch: `feature/application-bot-m1-m5-core`
+- Work branch: `feature/application-bot-m6-m8-ops`
+- Base commit: `a1807fa`
 - Core build commit: `4b6cff2` (`Build application bot core`)
 - Current feature-branch HEAD: run `git rev-parse --short HEAD`; the exact
   completion hash is also reported in the final build report.
-- Milestones: M1–M5 core complete
+- Milestones: M1–M8 operational dry-run complete
 
 ## Completed
 
@@ -22,17 +24,27 @@
 - Correct remote-US versus onsite/unclear-geography scoring.
 - Review and blocked CRM states remain intact after scoring and packet export.
 - Configuration, sample jobs, and operator documentation.
+- Curated live ATS registry with one validated public GET board enabled and all
+  other boards disabled.
+- Resilient multi-source dry pipeline with partial/offline reporting.
+- Persistent email queue and `.eml` dry-run previews.
+- Independent live-email flags and exact approval-phrase gate.
+- Disabled-by-default scheduler command plus launchctl/cron examples.
+- Markdown and JSON daily reports.
+- Gmail-ready confirmation tracker with imported fixture classification.
 
 ## Commands run
 
 ```bash
 python3 -m pytest -q
 python3 -m compileall -q application_bot tests
-python3 -m application_bot.main init-db --db /tmp/application_bot_test.sqlite
-python3 -m application_bot.main scan --source manual_json --input examples/jobs.example.json --db /tmp/application_bot_test.sqlite
-python3 -m application_bot.main score --db /tmp/application_bot_test.sqlite
-python3 -m application_bot.main export-packets --db /tmp/application_bot_test.sqlite --out /tmp/application_bot_packets
-python3 -m application_bot.main report --db /tmp/application_bot_test.sqlite
+python3 -m application_bot.main --help
+python3 -m application_bot.main init-db --db /tmp/application_bot_ops.sqlite
+python3 -m application_bot.main run-dry-pipeline --registry config/live_company_registry.yaml --db /tmp/application_bot_ops.sqlite --out /tmp/application_bot_ops_exports --limit 25
+python3 -m application_bot.main queue-email-applications --db /tmp/application_bot_ops.sqlite
+python3 -m application_bot.main send-email-applications --db /tmp/application_bot_ops.sqlite --dry-run
+python3 -m application_bot.main daily-report --db /tmp/application_bot_ops.sqlite --out /tmp/application_bot_ops_report
+python3 -m application_bot.main report --db /tmp/application_bot_ops.sqlite
 PATH="$PWD:$PATH" application-bot --help
 ```
 
@@ -40,7 +52,7 @@ The verification shell has no `python` alias; `python3` is Python 3.14.5.
 
 ## Test result
 
-The latest audit passed 41 offline tests. Exact pytest and CLI results are
+The latest pre-commit audit passed 57 offline tests. Exact pytest and CLI results are
 recorded in the completion report and should be regenerated with the commands
 in `docs/VERIFICATION.md` after any change.
 
@@ -48,14 +60,21 @@ in `docs/VERIFICATION.md` after any change.
 
 - Packet achievements are intentionally generic until a verified resume/claim inventory is connected.
 - No authenticated ATS submission adapter is enabled.
-- Gmail confirmation ingestion has a schema extension point but no connector implementation.
-- No scheduler or review UI is included in the local M1–M5 core.
-- Email submission is implemented at adapter level but is not exposed as an unattended bulk-submit CLI command.
+- Gmail parsing works for imported JSON fixtures; no real Gmail API connector is configured.
+- The scheduler command runs one dry cycle but no launchctl/cron job is installed.
+- The live company registry requires operator review before sources are enabled.
+- No review UI is included.
 
 ## Next recommended task
 
-Build a versioned, user-approved claim inventory from Vadim’s source resume and use it to generate evidence-backed role-specific summaries and achievement bullets.
+Build a versioned, user-approved claim inventory and run the first measured
+public ATS dry scan with one verified company enabled.
 
 ## Exact no-go boundaries
 
-No LinkedIn scraper or click-bot. No direct Indeed or ZipRecruiter scraping. No CAPTCHA, login, bot-detection, rate-limit, or session-protection bypass. No proxy rotation, stealth evasion, cookie harvesting, or credential scraping. No fabricated resume or legal claims. No real external submission without explicit adapter authority, complete configuration, and `LIVE_APPLY_ENABLED=true`.
+No LinkedIn scraper or click-bot. No direct Indeed or ZipRecruiter scraping. No
+CAPTCHA, login, bot-detection, rate-limit, or session-protection bypass. No
+proxy rotation, stealth evasion, cookie harvesting, or credential scraping. No
+fabricated resume or legal claims. No real email without both live flags,
+complete SMTP configuration, exact approval phrase, packet, recipient,
+`AUTO_SUBMIT_EMAIL`, and zero unresolved compliance flags.

@@ -1,0 +1,22 @@
+{
+  "jobs": [
+    {
+      "external_id": "email-example-001",
+      "source": "email_to_apply",
+      "source_url": "mailto:jobs@example.com",
+      "apply_url": "mailto:jobs@example.com",
+      "recipient": "jobs@example.com",
+      "company": "Example AI Systems",
+      "title": "Senior Director, Growth Marketing & GTM Systems",
+      "department": "Marketing",
+      "location": "Remote - United States",
+      "remote_type": "remote",
+      "salary_min": 185000,
+      "salary_max": 225000,
+      "currency": "USD",
+      "description": "Lead growth marketing, demand generation, lifecycle marketing, and AI-enabled go-to-market transformation.",
+      "requirements": "Executive leadership, marketing operations, GTM strategy, and revenue systems experience.",
+      "responsibilities": "Build the function, align the leadership team, and improve pipeline measurement."
+    }
+  ]
+}

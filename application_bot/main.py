@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from pathlib import Path
 import sys
 from typing import Any
@@ -17,10 +16,18 @@ from application_bot.adapters import (
     ManualJsonAdapter,
     ZipConnectorAdapter,
 )
-from application_bot.config import load_company_registry, load_config
+from application_bot.config import load_config
+from application_bot.confirmations import ImportedEmailConfirmationTracker
 from application_bot.database import Database
+from application_bot.email_service import (
+    queue_email_applications,
+    send_email_applications,
+)
 from application_bot.packets import export_packet, generate_packet, packet_to_dict
-from application_bot.policy import evaluate_submission_policy
+from application_bot.pipeline import run_dry_pipeline, scan_registry
+from application_bot.policy import evaluate_job_submission_policy
+from application_bot.reporting import write_daily_report
+from application_bot.scheduler import run_scheduler_once, scheduler_status
 from application_bot.scoring import score_job
 
 
@@ -53,58 +60,40 @@ def command_init_db(args: argparse.Namespace, config: dict[str, Any]) -> int:
     return 0
 
 
-def _scan_registry(
-    database: Database,
-    source: str,
-    registry_path: str,
-) -> tuple[int, int, list[str]]:
-    jobs_seen = 0
-    jobs_written = 0
-    companies_scanned: list[str] = []
-    for company in load_company_registry(registry_path):
-        database.register_company(company)
-        if not company.get("enabled", False) or company.get("ats") != source:
-            continue
-        adapter = ADAPTERS[source]()
-        kwargs = {"company": company["name"]}
-        if source == "greenhouse":
-            kwargs["board_token"] = company["board_token"]
-        elif source == "lever":
-            kwargs["site"] = company["site"]
-        elif source == "ashby":
-            kwargs["board_name"] = company["board_name"]
-        jobs = adapter.discover_jobs(**kwargs)
-        companies_scanned.append(company["name"])
-        jobs_seen += len(jobs)
-        for job in jobs:
-            _, created = database.upsert_job(job)
-            jobs_written += int(created)
-    return jobs_seen, jobs_written, companies_scanned
-
-
 def command_scan(args: argparse.Namespace, config: dict[str, Any]) -> int:
     database = _db(args, config)
+    registry = args.registry or args.company_registry
+    if registry:
+        if args.source and args.source not in {"greenhouse", "lever", "ashby"}:
+            raise ValueError("--registry can only be combined with an ATS source")
+        result = scan_registry(
+            database,
+            registry,
+            limit=args.limit,
+            source_filter=args.source,
+        )
+        result["dry_run"] = True
+        _print(result)
+        return 0
+    if not args.source:
+        raise ValueError("scan requires --source or --registry")
+
     run_id = database.start_source_run(
         args.source,
-        {"input": args.input, "company_registry": args.company_registry},
+        {"input": args.input, "dry_run": True},
     )
     try:
         if args.source in {"greenhouse", "lever", "ashby"}:
-            if not args.company_registry:
-                raise ValueError(f"{args.source} requires --company-registry")
-            seen, written, companies = _scan_registry(
-                database, args.source, args.company_registry
-            )
-            details = {"companies_scanned": companies}
-        else:
-            adapter = ADAPTERS[args.source]()
-            jobs = adapter.discover_jobs(input_path=args.input)
-            seen = len(jobs)
-            written = 0
-            for job in jobs:
-                _, created = database.upsert_job(job)
-                written += int(created)
-            details = {}
+            raise ValueError(f"{args.source} requires --registry")
+        adapter = ADAPTERS[args.source]()
+        jobs = adapter.discover_jobs(input_path=args.input)
+        jobs = jobs[: args.limit] if args.limit >= 0 else jobs
+        seen = len(jobs)
+        written = 0
+        for job in jobs:
+            _, created = database.upsert_job(job)
+            written += int(created)
+        details = {}
         database.finish_source_run(
             run_id,
             status="COMPLETED",
@@ -153,43 +142,13 @@ def command_score(args: argparse.Namespace, config: dict[str, Any]) -> int:
     return 0
 
 
-def _policy_for_job(job: Any, config: dict[str, Any]):
-    flags: list[str] = []
-    corpus = f"{job.description} {job.requirements}".lower()
-    if "captcha" in corpus:
-        flags.append("captcha")
-    if "login required" in corpus or "create an account" in corpus:
-        flags.append("login_required")
-    if "legal attestation" in corpus:
-        flags.append("unknown_legal_attestation")
-    recipient = None
-    if job.apply_url.lower().startswith("mailto:"):
-        recipient = job.apply_url.split(":", 1)[1].split("?", 1)[0]
-    else:
-        try:
-            raw_payload = json.loads(job.raw_payload_json or "{}")
-            recipient = (
-                raw_payload.get("recipient")
-                or raw_payload.get("apply_email")
-                or raw_payload.get("email")
-            )
-        except json.JSONDecodeError:
-            recipient = None
-    return evaluate_submission_policy(
-        job.source,
-        flags=flags,
-        live_apply_enabled=bool(config.get("live_apply_enabled")),
-        recipient=recipient,
-    )
-
-
 def command_export_packets(args: argparse.Namespace, config: dict[str, Any]) -> int:
     database = _db(args, config)
     output_root = args.out or config["export_path"]
     exported: list[str] = []
     skipped: list[dict[str, Any]] = []
     for job in database.list_jobs(scored_only=True):
-        policy = _policy_for_job(job, config)
+        policy = evaluate_job_submission_policy(job, config)
         if str(job.verdict) in {"NOT_WORTH_TIME", "BLOCKED"} or str(policy.decision) == "BLOCKED":
             skipped.append(
                 {"job_id": job.id, "verdict": job.verdict, "policy": str(policy.decision)}
@@ -227,7 +186,7 @@ def command_policy_check(args: argparse.Namespace, config: dict[str, Any]) -> in
     job = database.get_job(args.job_id)
     if not job:
         raise ValueError(f"Job {args.job_id} does not exist")
-    policy = _policy_for_job(job, config)
+    policy = evaluate_job_submission_policy(job, config)
     _print(
         {
             "job_id": job.id,
@@ -240,12 +199,96 @@ def command_policy_check(args: argparse.Namespace, config: dict[str, Any]) -> in
     return 0
 
 
+def command_run_dry_pipeline(
+    args: argparse.Namespace,
+    config: dict[str, Any],
+) -> int:
+    result = run_dry_pipeline(
+        database_path=args.db or config["database_path"],
+        registry_path=args.registry or config["live_company_registry"],
+        output_root=args.out or config["export_path"],
+        config=config,
+        limit=args.limit,
+    )
+    _print(result)
+    return 0
+
+
+def command_queue_email_applications(
+    args: argparse.Namespace,
+    config: dict[str, Any],
+) -> int:
+    database = _db(args, config)
+    _print(queue_email_applications(database, config))
+    return 0
+
+
+def command_send_email_applications(
+    args: argparse.Namespace,
+    config: dict[str, Any],
+) -> int:
+    database = _db(args, config)
+    result = send_email_applications(
+        database,
+        config,
+        output_root=args.out or config["export_path"],
+        live=bool(args.live),
+        approval_phrase=args.approval_phrase or "",
+    )
+    _print(result)
+    return 0
+
+
+def command_daily_report(args: argparse.Namespace, config: dict[str, Any]) -> int:
+    database = _db(args, config)
+    _print(write_daily_report(database, args.out))
+    return 0
+
+
+def command_scheduler(args: argparse.Namespace, config: dict[str, Any]) -> int:
+    if not args.run_once:
+        _print(
+            {
+                "scheduler": scheduler_status(config),
+                "message": (
+                    "Scheduler is not installed or running. Use --run-once or "
+                    "configure launchctl/cron from docs/SCHEDULER.md."
+                ),
+            }
+        )
+        return 0
+    result = run_scheduler_once(
+        config=config,
+        registry_path=args.registry or config["live_company_registry"],
+        database_path=args.db or config["database_path"],
+        output_root=args.out or config["export_path"],
+        limit=args.limit,
+    )
+    _print(result)
+    return 0
+
+
+def command_import_confirmations(
+    args: argparse.Namespace,
+    config: dict[str, Any],
+) -> int:
+    database = _db(args, config)
+    tracker = ImportedEmailConfirmationTracker()
+    _print(tracker.import_messages(args.input, database))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="application-bot",
         description="Compliance-first job discovery, scoring, packet generation, and CRM.",
     )
-    parser.add_argument("--config", default=None, help="YAML configuration path")
+    parser.add_argument(
+        "--config",
+        dest="config_path",
+        default=None,
+        help="YAML configuration path",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     init_db = subparsers.add_parser("init-db", help="Initialize the SQLite CRM")
@@ -253,9 +296,12 @@ def build_parser() -> argparse.ArgumentParser:
     init_db.set_defaults(handler=command_init_db)
 
     scan = subparsers.add_parser("scan", help="Discover and import jobs")
-    scan.add_argument("--source", choices=sorted(ADAPTERS), required=True)
+    scan.add_argument("--source", choices=sorted(ADAPTERS))
     scan.add_argument("--input", help="JSON file for manual/review/email sources")
-    scan.add_argument("--company-registry", help="YAML company registry for ATS sources")
+    scan.add_argument("--company-registry", help="Legacy alias for --registry")
+    scan.add_argument("--registry", help="YAML company registry for ATS sources")
+    scan.add_argument("--dry-run", action="store_true", help="Explicit safe scan mode")
+    scan.add_argument("--limit", type=int, default=25)
     scan.add_argument("--db")
     scan.set_defaults(handler=command_scan)
 
@@ -283,13 +329,71 @@ def build_parser() -> argparse.ArgumentParser:
     policy.add_argument("--job-id", type=int, required=True)
     policy.add_argument("--db")
     policy.set_defaults(handler=command_policy_check)
+
+    pipeline = subparsers.add_parser(
+        "run-dry-pipeline",
+        help="Run discovery, scoring, packets, previews, and reports without submission",
+    )
+    pipeline.add_argument("--registry")
+    pipeline.add_argument("--db")
+    pipeline.add_argument("--out")
+    pipeline.add_argument("--limit", type=int, default=25)
+    pipeline.set_defaults(handler=command_run_dry_pipeline)
+
+    queue_email = subparsers.add_parser(
+        "queue-email-applications",
+        help="Queue packet-backed email-to-apply opportunities",
+    )
+    queue_email.add_argument("--db")
+    queue_email.set_defaults(handler=command_queue_email_applications)
+
+    send_email = subparsers.add_parser(
+        "send-email-applications",
+        help="Generate previews or request a separately authorized live email send",
+    )
+    send_email.add_argument("--db")
+    send_email.add_argument("--out")
+    mode = send_email.add_mutually_exclusive_group()
+    mode.add_argument("--dry-run", action="store_true", help="Generate .eml previews")
+    mode.add_argument("--live", action="store_true", help="Request guarded live sending")
+    send_email.add_argument("--approval-phrase")
+    send_email.set_defaults(handler=command_send_email_applications)
+
+    daily = subparsers.add_parser(
+        "daily-report",
+        help="Write Markdown and JSON daily reports",
+    )
+    daily.add_argument("--db")
+    daily.add_argument("--out", required=True)
+    daily.set_defaults(handler=command_daily_report)
+
+    scheduler = subparsers.add_parser(
+        "scheduler",
+        help="Inspect scheduler config or run one dry pipeline cycle",
+    )
+    scheduler.add_argument("--config", dest="scheduler_config_path")
+    scheduler.add_argument("--run-once", action="store_true")
+    scheduler.add_argument("--registry")
+    scheduler.add_argument("--db")
+    scheduler.add_argument("--out")
+    scheduler.add_argument("--limit", type=int, default=25)
+    scheduler.set_defaults(handler=command_scheduler)
+
+    confirmations = subparsers.add_parser(
+        "import-confirmations",
+        help="Import and classify Gmail-style JSON fixtures",
+    )
+    confirmations.add_argument("--input", required=True)
+    confirmations.add_argument("--db")
+    confirmations.set_defaults(handler=command_import_confirmations)
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    config = load_config(args.config)
+    config_path = getattr(args, "scheduler_config_path", None) or args.config_path
+    config = load_config(config_path)
     try:
         return int(args.handler(args, config))
     except (ValueError, OSError, json.JSONDecodeError) as exc:

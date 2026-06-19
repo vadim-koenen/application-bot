@@ -52,8 +52,18 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "dry_run": True,
     "live_apply_enabled": False,
+    "live_email_send_enabled": False,
+    "email_send_approval_phrase": "",
     "database_path": "data/application_bot.sqlite",
     "export_path": "exports",
+    "live_company_registry": "config/live_company_registry.yaml",
+    "pipeline_limit": 25,
+    "scheduler": {
+        "enabled": False,
+        "cadence": "daily",
+        "time": "08:00",
+        "timezone": "America/Chicago",
+    },
 }
 
 
@@ -80,6 +90,15 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
     live_flag = os.getenv("LIVE_APPLY_ENABLED")
     if live_flag is not None:
         config["live_apply_enabled"] = live_flag.strip().lower() == "true"
+    live_email_flag = os.getenv("LIVE_EMAIL_SEND_ENABLED")
+    if live_email_flag is not None:
+        config["live_email_send_enabled"] = (
+            live_email_flag.strip().lower() == "true"
+        )
+    config["email_send_approval_phrase"] = os.getenv(
+        "EMAIL_SEND_APPROVAL_PHRASE",
+        str(config.get("email_send_approval_phrase") or ""),
+    )
     config["dry_run"] = not bool(config["live_apply_enabled"])
     return config
 
