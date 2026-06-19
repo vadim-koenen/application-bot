@@ -3,7 +3,9 @@
 ## Repository state
 
 - Branch: `feature/application-bot-m1-m5-core`
-- Build commit: `Build application bot core` (current feature-branch HEAD; exact hash is reported after commit)
+- Core build commit: `4b6cff2` (`Build application bot core`)
+- Current feature-branch HEAD: run `git rev-parse --short HEAD`; the exact
+  completion hash is also reported in the final build report.
 - Milestones: M1–M5 core complete
 
 ## Completed
@@ -15,6 +17,10 @@
 - Independent submission policy and compliance guards.
 - Markdown packet and JSON report export.
 - Mocked offline test suite.
+- Hardened ATS normalization for Greenhouse departments/encoded HTML and
+  Lever/Ashby compensation.
+- Correct remote-US versus onsite/unclear-geography scoring.
+- Review and blocked CRM states remain intact after scoring and packet export.
 - Configuration, sample jobs, and operator documentation.
 
 ## Commands run
@@ -34,7 +40,9 @@ The verification shell has no `python` alias; `python3` is Python 3.14.5.
 
 ## Test result
 
-The final exact pytest and CLI results are recorded in the completion report and should be regenerated with the commands in `docs/VERIFICATION.md` after any change.
+The latest audit passed 41 offline tests. Exact pytest and CLI results are
+recorded in the completion report and should be regenerated with the commands
+in `docs/VERIFICATION.md` after any change.
 
 ## Known gaps
 

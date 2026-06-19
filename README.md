@@ -6,7 +6,8 @@ The default runtime is dry-run. Public ATS adapters never gain submit authority 
 
 ## What it does
 
-- Discovers jobs from Greenhouse, Lever, and Ashby public job-board APIs.
+- Discovers jobs from Greenhouse, Lever, and Ashby public job-board APIs,
+  including available department and compensation data.
 - Imports jobs from JSON or CSV, including connector-fed review queues.
 - Scores roles against executive growth, demand generation, revenue systems, GTM systems, marketing operations, and AI-enabled transformation targets.
 - Penalizes junior roles, pure sales roles, low salary ranges, onsite-only work, and Workday friction.

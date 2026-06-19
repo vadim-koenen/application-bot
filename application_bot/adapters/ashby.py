@@ -3,7 +3,11 @@ from __future__ import annotations
 from typing import Any
 
 from application_bot.adapters.base import SourceAdapter
-from application_bot.adapters.util import infer_remote_type, strip_html
+from application_bot.adapters.util import (
+    ashby_salary_fields,
+    infer_remote_type,
+    strip_html,
+)
 from application_bot.models import Job
 
 
@@ -14,7 +18,10 @@ class AshbyAdapter(SourceAdapter):
     def discover_jobs(self, **kwargs: Any) -> list[Job]:
         board_name = kwargs["board_name"]
         company = kwargs.get("company") or board_name
-        url = f"https://api.ashbyhq.com/posting-api/job-board/{board_name}"
+        url = (
+            f"https://api.ashbyhq.com/posting-api/job-board/{board_name}"
+            "?includeCompensation=true"
+        )
         payload = self.transport(url)
         return [
             self.normalize_job(row, company=company, board_name=board_name)
@@ -25,6 +32,7 @@ class AshbyAdapter(SourceAdapter):
         location = str(payload.get("location") or "")
         workplace = str(payload.get("workplaceType") or "")
         apply_url = str(payload.get("applyUrl") or payload.get("jobUrl") or "")
+        salary_min, salary_max, currency = ashby_salary_fields(payload)
         return Job(
             external_id=str(payload.get("id") or apply_url),
             source=self.source_name,
@@ -35,6 +43,9 @@ class AshbyAdapter(SourceAdapter):
             department=str(payload.get("department") or payload.get("team") or ""),
             location=location,
             remote_type=infer_remote_type(location, workplace),
+            salary_min=salary_min,
+            salary_max=salary_max,
+            currency=currency,
             description=strip_html(
                 payload.get("descriptionPlain") or payload.get("descriptionHtml")
             ),

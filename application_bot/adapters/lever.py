@@ -3,7 +3,11 @@ from __future__ import annotations
 from typing import Any
 
 from application_bot.adapters.base import SourceAdapter
-from application_bot.adapters.util import infer_remote_type, strip_html
+from application_bot.adapters.util import (
+    infer_remote_type,
+    lever_salary_fields,
+    strip_html,
+)
 from application_bot.models import Job
 
 
@@ -40,6 +44,7 @@ class LeverAdapter(SourceAdapter):
             or payload.get("additionalPlain")
         )
         apply_url = str(payload.get("applyUrl") or payload.get("hostedUrl") or "")
+        salary_min, salary_max, currency = lever_salary_fields(payload)
         return Job(
             external_id=str(payload.get("id") or apply_url),
             source=self.source_name,
@@ -52,6 +57,9 @@ class LeverAdapter(SourceAdapter):
             remote_type=infer_remote_type(
                 location, str(payload.get("workplaceType") or "")
             ),
+            salary_min=salary_min,
+            salary_max=salary_max,
+            currency=currency,
             description=description,
             requirements=" ".join(requirements),
             responsibilities=" ".join(responsibilities),

@@ -85,6 +85,23 @@ def test_remote_us_beats_onsite_only():
     assert remote.score > onsite.score
 
 
+def test_united_states_onsite_does_not_receive_remote_bonus():
+    result = score_job(
+        make_job(location="United States", remote_type="onsite"), DEFAULT_CONFIG
+    )
+    assert result.dimensions["location"] == -12
+    assert "Onsite-only location." in result.risk_flags
+
+
+def test_remote_us_beats_remote_with_unclear_us_eligibility():
+    remote_us = score_job(make_job(), DEFAULT_CONFIG)
+    remote_elsewhere = score_job(
+        make_job(location="Remote - Europe", remote_type="remote"), DEFAULT_CONFIG
+    )
+    assert remote_us.score > remote_elsewhere.score
+    assert remote_elsewhere.dimensions["location"] == 6
+
+
 def test_marketing_gtm_revenue_systems_scores_high():
     result = score_job(make_job(), DEFAULT_CONFIG)
     assert result.score >= 80
@@ -162,7 +179,8 @@ def test_greenhouse_mocked_response_normalizes():
                 "title": "Director, Demand Generation",
                 "absolute_url": "https://boards.greenhouse.io/acme/jobs/42",
                 "location": {"name": "Remote - US"},
-                "content": "<p>Lead demand generation.</p>",
+                "content": "&amp;lt;p&amp;gt;Lead demand generation.&amp;lt;/p&amp;gt;",
+                "departments": [{"id": 7, "name": "Growth Marketing"}],
                 "updated_at": "2026-06-10T00:00:00Z",
             }
         ]
@@ -173,6 +191,7 @@ def test_greenhouse_mocked_response_normalizes():
     assert jobs[0].company == "Acme"
     assert jobs[0].title == "Director, Demand Generation"
     assert jobs[0].description == "Lead demand generation."
+    assert jobs[0].department == "Growth Marketing"
 
 
 def test_lever_mocked_response_normalizes():
@@ -185,6 +204,12 @@ def test_lever_mocked_response_normalizes():
             "descriptionPlain": "Lead growth marketing.",
             "categories": {"team": "Marketing", "location": "Remote"},
             "workplaceType": "remote",
+            "salaryRange": {
+                "currency": "USD",
+                "interval": "per-year-salary",
+                "min": 190000,
+                "max": 230000,
+            },
             "lists": [{"text": "Requirements", "content": "<li>GTM strategy</li>"}],
         }
     ]
@@ -194,6 +219,7 @@ def test_lever_mocked_response_normalizes():
     assert job.department == "Marketing"
     assert job.requirements == "GTM strategy"
     assert job.remote_type == "remote"
+    assert (job.salary_min, job.salary_max, job.currency) == (190000, 230000, "USD")
 
 
 def test_ashby_mocked_response_normalizes():
@@ -208,6 +234,17 @@ def test_ashby_mocked_response_normalizes():
                 "jobUrl": "https://jobs.ashbyhq.com/acme/ashby-1",
                 "applyUrl": "https://jobs.ashbyhq.com/acme/ashby-1/application",
                 "descriptionHtml": "<p>Own GTM systems.</p>",
+                "compensation": {
+                    "summaryComponents": [
+                        {
+                            "compensationType": "Salary",
+                            "interval": "1 YEAR",
+                            "currencyCode": "USD",
+                            "minValue": 200000,
+                            "maxValue": 250000,
+                        }
+                    ]
+                },
             }
         ]
     }
@@ -217,6 +254,27 @@ def test_ashby_mocked_response_normalizes():
     assert job.title == "Head of Revenue Systems"
     assert job.description == "Own GTM systems."
     assert job.apply_url.endswith("/application")
+    assert (job.salary_min, job.salary_max, job.currency) == (200000, 250000, "USD")
+
+
+def test_review_queue_status_survives_scoring_and_packet_export(tmp_path):
+    database = Database(tmp_path / "crm.sqlite")
+    database.initialize()
+    job = make_job(source="linkedin_review_queue", status="REVIEW_REQUIRED")
+    job_id, _ = database.upsert_job(job)
+    result = score_job(job, DEFAULT_CONFIG)
+    database.save_score(job_id, result)
+    scored = database.get_job(job_id)
+    assert scored is not None
+    assert scored.status == "REVIEW_REQUIRED"
+
+    policy = evaluate_submission_policy(scored.source)
+    packet = generate_packet(scored, DEFAULT_CONFIG, policy)
+    export_path = export_packet(scored, packet, tmp_path / "packets")
+    database.save_packet(job_id, str(export_path), {"policy": str(policy.decision)})
+    exported = database.get_job(job_id)
+    assert exported is not None
+    assert exported.status == "REVIEW_REQUIRED"
 
 
 def test_deduplication_uses_canonical_job_fields(tmp_path):

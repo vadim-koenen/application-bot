@@ -25,6 +25,9 @@ https://boards-api.greenhouse.io/v1/boards/{board_token}/jobs?content=true
 
 Discovery only by default.
 
+The normalizer reads the documented `departments` collection and safely
+decodes HTML-entity-encoded job descriptions.
+
 ### `lever`
 
 Uses the public postings endpoint:
@@ -35,6 +38,9 @@ https://api.lever.co/v0/postings/{site}?mode=json
 
 Discovery only by default.
 
+When present, the documented `salaryRange` object is normalized into the CRM
+salary fields.
+
 ### `ashby`
 
 Uses the public job-board endpoint:
@@ -44,6 +50,9 @@ https://api.ashbyhq.com/posting-api/job-board/{board_name}
 ```
 
 Discovery only by default.
+
+Discovery requests `includeCompensation=true`; annual salary summary components
+are normalized into the CRM salary fields when Ashby publishes them.
 
 ### `email_to_apply`
 

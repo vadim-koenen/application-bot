@@ -71,15 +71,42 @@ def score_job(job: Job, config: dict[str, Any]) -> ScoreResult:
 
     location = f"{job.location} {job.remote_type}".lower()
     preferences = config.get("location_preferences", {})
-    if _contains_any(location, preferences.get("remote_us", [])):
+    is_remote = job.remote_type.lower() == "remote" or "remote" in location
+    is_hybrid = job.remote_type.lower() == "hybrid" or "hybrid" in location
+    is_onsite = (
+        job.remote_type.lower() in {"onsite", "on-site"}
+        or "onsite" in location
+        or "on-site" in location
+    )
+    is_dfw = bool(_contains_any(location, preferences.get("dfw", [])))
+    explicit_us = any(
+        marker in location
+        for marker in (
+            "united states",
+            "usa",
+            "u.s.",
+            "us remote",
+            "remote - us",
+            "remote, us",
+        )
+    )
+    generic_remote = job.location.strip().lower() in {"", "remote", "remote us"}
+    if is_remote and (explicit_us or generic_remote):
         dimensions["location"] = 12
-        reasons.append("Remote-compatible location.")
-    elif _contains_any(location, preferences.get("dfw", [])):
+        reasons.append("Remote US-compatible location.")
+    elif is_remote:
+        dimensions["location"] = 6
+        reasons.append("Remote role; US eligibility is not explicit.")
+        risk_flags.append("Confirm that the remote geography includes the United States.")
+    elif is_hybrid and is_dfw:
         dimensions["location"] = 7
-        reasons.append("Dallas/Plano/DFW location fit.")
-    elif job.remote_type.lower() == "onsite" or "onsite" in location:
+        reasons.append("Dallas/Plano/DFW hybrid location fit.")
+    elif is_onsite:
         dimensions["location"] = -12
         risk_flags.append("Onsite-only location.")
+    elif is_dfw:
+        dimensions["location"] = 4
+        reasons.append("Dallas/Plano/DFW location fit; work arrangement is unclear.")
     else:
         dimensions["location"] = -2
         risk_flags.append("Location arrangement is unclear.")

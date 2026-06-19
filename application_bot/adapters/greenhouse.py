@@ -28,10 +28,17 @@ class GreenhouseAdapter(SourceAdapter):
         company = str(kwargs.get("company") or payload.get("company_name") or "Unknown")
         location = str((payload.get("location") or {}).get("name") or "")
         metadata = payload.get("metadata") or []
-        department = ""
-        for item in metadata:
-            if str(item.get("name", "")).lower() == "department":
-                department = str(item.get("value") or "")
+        departments = payload.get("departments") or []
+        department = ", ".join(
+            str(item.get("name") or "").strip()
+            for item in departments
+            if isinstance(item, dict) and str(item.get("name") or "").strip()
+        )
+        if not department:
+            for item in metadata:
+                if str(item.get("name", "")).lower() == "department":
+                    department = str(item.get("value") or "")
+                    break
         description = strip_html(payload.get("content"))
         absolute_url = str(payload.get("absolute_url") or "")
         return Job(

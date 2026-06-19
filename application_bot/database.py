@@ -276,7 +276,9 @@ class Database:
                 UPDATE jobs
                 SET score = ?, verdict = ?, score_details_json = ?,
                     status = CASE
-                        WHEN status IN ('APPLIED', 'PACKET_EXPORTED') THEN status
+                        WHEN status IN (
+                            'APPLIED', 'PACKET_EXPORTED', 'REVIEW_REQUIRED', 'BLOCKED'
+                        ) THEN status
                         ELSE 'SCORED'
                     END,
                     updated_at = ?
@@ -315,7 +317,13 @@ class Database:
             )
             connection.execute(
                 """
-                UPDATE jobs SET status = 'PACKET_EXPORTED', updated_at = ? WHERE id = ?
+                UPDATE jobs
+                SET status = CASE
+                        WHEN status IN ('REVIEW_REQUIRED', 'BLOCKED') THEN status
+                        ELSE 'PACKET_EXPORTED'
+                    END,
+                    updated_at = ?
+                WHERE id = ?
                 """,
                 (utc_now(), job_id),
             )
