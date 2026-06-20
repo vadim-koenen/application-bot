@@ -50,7 +50,7 @@ class GreenhouseAdapter(SourceAdapter):
             title=str(payload.get("title") or "Unknown role"),
             department=department,
             location=location,
-            remote_type=infer_remote_type(location),
+            remote_type=infer_remote_type(location, description),
             description=description,
             posted_at=payload.get("updated_at"),
             raw_payload_json=self._raw_json(payload),

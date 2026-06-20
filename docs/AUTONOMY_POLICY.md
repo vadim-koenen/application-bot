@@ -7,6 +7,10 @@
 updates, packet generation, email previews, imported confirmation parsing, and
 daily reports may run autonomously. External application submission may not.
 
+Candidate language has a separate boundary:
+`config/resume_claim_inventory.yaml`. A high fit score does not authorize an
+unsupported resume claim.
+
 ## Decisions
 
 - `AUTO_SUBMIT_ALLOWED`: an explicitly submit-capable ATS adapter has credentials, known required questions, live mode, and no review trigger.
@@ -31,6 +35,10 @@ daily reports may run autonomously. External application submission may not.
 ## Mandatory human review
 
 CAPTCHA, login requirements, unknown legal attestations, unknown required questions, ambiguous consent, and unverified work-authorization or compensation answers require review.
+
+Unsupported tenure, education, credentials, employment history, metrics, or
+named-platform proficiency create claim gaps. They produce a review packet when
+role fit warrants one and are never filled from inference.
 
 ## Email live-send gates
 

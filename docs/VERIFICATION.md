@@ -7,12 +7,13 @@ All automated tests are offline. ATS responses are injected as mocked JSON; no e
 ```bash
 python3 -m pytest -q
 python3 -m application_bot.main --help
-python3 -m application_bot.main init-db --db /tmp/application_bot_ops.sqlite
-python3 -m application_bot.main run-dry-pipeline --registry config/live_company_registry.yaml --db /tmp/application_bot_ops.sqlite --out /tmp/application_bot_ops_exports --limit 25
-python3 -m application_bot.main queue-email-applications --db /tmp/application_bot_ops.sqlite
-python3 -m application_bot.main send-email-applications --db /tmp/application_bot_ops.sqlite --dry-run
-python3 -m application_bot.main daily-report --db /tmp/application_bot_ops.sqlite --out /tmp/application_bot_ops_report
-python3 -m application_bot.main report --db /tmp/application_bot_ops.sqlite
+python3 -m application_bot.main init-db --db /tmp/application_bot_m9.sqlite
+python3 -m application_bot.main run-dry-pipeline --registry config/live_company_registry.yaml --db /tmp/application_bot_m9.sqlite --out /tmp/application_bot_m9_exports --limit 50
+python3 -m application_bot.main source-report --db /tmp/application_bot_m9.sqlite
+python3 -m application_bot.main review-queue --db /tmp/application_bot_m9.sqlite --out /tmp/application_bot_m9_review
+python3 -m application_bot.main export-review-csv --db /tmp/application_bot_m9.sqlite --out /tmp/application_bot_m9_review.csv
+python3 -m application_bot.main daily-report --db /tmp/application_bot_m9.sqlite --out /tmp/application_bot_m9_report
+python3 -m application_bot.main report --db /tmp/application_bot_m9.sqlite
 PATH="$PWD:$PATH" application-bot --help
 ```
 
@@ -38,9 +39,14 @@ alias. If your environment maps `python` to Python 3.11+, either spelling works.
 - Email queue, previews, live flags, and approval phrase.
 - Scheduler run-once and daily report generation.
 - Gmail fixture classification.
+- Claim inventory loading and prohibited-claim guards.
+- Ready/review/no-packet conversion outcomes.
+- Realistic senior, manager, sales, onsite, and Workday fixtures.
+- Source quality, review queue, and CSV exports.
+- Configurable packet thresholds.
 
 ## Safe test cleanup
 
-Verification uses `/tmp/application_bot_ops.sqlite`,
-`/tmp/application_bot_ops_exports`, and `/tmp/application_bot_ops_report.*`.
+Verification uses `/tmp/application_bot_m9.sqlite`,
+`/tmp/application_bot_m9_exports`, and `/tmp/application_bot_m9_report.*`.
 Removing those test artifacts does not affect the repository or configured CRM.

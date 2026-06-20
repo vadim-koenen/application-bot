@@ -34,6 +34,8 @@ Permitted sources / user imports
 - `application_bot.confirmations`: Gmail-ready interface and fixture parser.
 - `application_bot.reporting`: Markdown and JSON daily operations reports.
 - `application_bot.scheduler`: disabled-by-default run-once scheduling entry point.
+- `application_bot.claims`: approved-claim matching and unsupported-claim detection.
+- `application_bot.review`: source-quality and review-queue exports.
 - `application_bot.main`: CLI orchestration.
 - `application_bot.config`: YAML defaults and environment overrides.
 
@@ -45,9 +47,11 @@ Permitted sources / user imports
 4. `score` writes score, verdict, dimensions, reasons, and flags.
 5. `policy-check` evaluates source and form-risk conditions independently.
 6. `export-packets` exports eligible scored jobs and records the packet event.
-7. Email opportunities enter a persistent queue and generate `.eml` previews.
-8. Daily reports summarize operational and safety state.
-9. `mark-applied` records a confirmed application; it never performs the external submission.
+7. Claim-safe conversion assigns every scored job a packet status and reasons.
+8. Ready/review packets are exported; no-packet jobs remain visible in the review queue.
+9. Email opportunities with `PACKET_READY` enter a persistent queue and generate `.eml` previews.
+10. Daily reports summarize operational and safety state.
+11. `mark-applied` records a confirmed application; it never performs the external submission.
 
 ## Network boundaries
 

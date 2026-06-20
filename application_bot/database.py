@@ -46,6 +46,11 @@ CREATE TABLE IF NOT EXISTS jobs (
     score INTEGER,
     verdict TEXT,
     score_details_json TEXT NOT NULL DEFAULT '{}',
+    submission_policy TEXT,
+    packet_status TEXT,
+    claim_gaps_json TEXT NOT NULL DEFAULT '[]',
+    packet_reason_codes_json TEXT NOT NULL DEFAULT '[]',
+    recommended_next_action TEXT,
     updated_at TEXT NOT NULL
 );
 
@@ -151,6 +156,20 @@ class Database:
             self._ensure_column(connection, "confirmations", "sender", "TEXT")
             self._ensure_column(connection, "confirmations", "body", "TEXT")
             self._ensure_column(connection, "confirmations", "classification", "TEXT")
+            self._ensure_column(connection, "jobs", "submission_policy", "TEXT")
+            self._ensure_column(connection, "jobs", "packet_status", "TEXT")
+            self._ensure_column(
+                connection, "jobs", "claim_gaps_json", "TEXT NOT NULL DEFAULT '[]'"
+            )
+            self._ensure_column(
+                connection,
+                "jobs",
+                "packet_reason_codes_json",
+                "TEXT NOT NULL DEFAULT '[]'",
+            )
+            self._ensure_column(
+                connection, "jobs", "recommended_next_action", "TEXT"
+            )
             connection.execute(
                 """
                 CREATE INDEX IF NOT EXISTS idx_confirmations_classification
@@ -383,14 +402,27 @@ class Database:
             connection.execute(
                 """
                 UPDATE jobs
-                SET status = CASE
+                SET packet_status = ?,
+                    claim_gaps_json = ?,
+                    packet_reason_codes_json = ?,
+                    recommended_next_action = ?,
+                    submission_policy = ?,
+                    status = CASE
                         WHEN status IN ('REVIEW_REQUIRED', 'BLOCKED') THEN status
                         ELSE 'PACKET_EXPORTED'
                     END,
                     updated_at = ?
                 WHERE id = ?
                 """,
-                (utc_now(), job_id),
+                (
+                    packet.get("packet_status"),
+                    json.dumps(packet.get("claim_gaps") or [], sort_keys=True),
+                    json.dumps(packet.get("reason_codes") or [], sort_keys=True),
+                    packet.get("recommended_next_action"),
+                    packet.get("policy"),
+                    utc_now(),
+                    job_id,
+                ),
             )
             connection.execute(
                 """
@@ -398,6 +430,50 @@ class Database:
                 VALUES (?, 'PACKET_EXPORTED', ?, ?)
                 """,
                 (job_id, json.dumps({"path": export_path}), utc_now()),
+            )
+
+    def save_packet_assessment(
+        self,
+        job_id: int,
+        *,
+        packet_status: str,
+        claim_gaps: list[str],
+        reason_codes: list[str],
+        recommended_next_action: str,
+        submission_policy: str,
+    ) -> None:
+        details = {
+            "packet_status": packet_status,
+            "claim_gaps": claim_gaps,
+            "reason_codes": reason_codes,
+            "recommended_next_action": recommended_next_action,
+            "submission_policy": submission_policy,
+        }
+        with self.connect() as connection:
+            connection.execute(
+                """
+                UPDATE jobs
+                SET packet_status = ?, claim_gaps_json = ?,
+                    packet_reason_codes_json = ?, recommended_next_action = ?,
+                    submission_policy = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    packet_status,
+                    json.dumps(claim_gaps, sort_keys=True),
+                    json.dumps(reason_codes, sort_keys=True),
+                    recommended_next_action,
+                    submission_policy,
+                    utc_now(),
+                    job_id,
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO events(job_id, event_type, details_json, created_at)
+                VALUES (?, 'PACKET_ASSESSED', ?, ?)
+                """,
+                (job_id, json.dumps(details, sort_keys=True), utc_now()),
             )
 
     def latest_packet(self, job_id: int) -> sqlite3.Row | None:
@@ -678,6 +754,14 @@ class Database:
                 GROUP BY status
                 """
             ).fetchall()
+            packet_statuses = connection.execute(
+                """
+                SELECT COALESCE(packet_status, 'UNASSESSED') AS packet_status,
+                       COUNT(*) AS count
+                FROM jobs
+                GROUP BY COALESCE(packet_status, 'UNASSESSED')
+                """
+            ).fetchall()
         return {
             "total_jobs": int(total["count"]),
             "by_status": {row["status"]: int(row["count"]) for row in by_status},
@@ -693,7 +777,119 @@ class Database:
             "source_runs": {
                 row["status"]: int(row["count"]) for row in source_runs
             },
+            "packet_statuses": {
+                row["packet_status"]: int(row["count"]) for row in packet_statuses
+            },
             "top_jobs": [dict(row) for row in top_jobs],
+        }
+
+    def review_queue_rows(self) -> list[dict[str, Any]]:
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT id, company, title, score, verdict, submission_policy,
+                       packet_status, claim_gaps_json, apply_url,
+                       recommended_next_action, packet_reason_codes_json
+                FROM jobs
+                WHERE score IS NOT NULL
+                ORDER BY
+                    CASE packet_status
+                        WHEN 'PACKET_READY' THEN 0
+                        WHEN 'REVIEW_PACKET_CLAIM_GAPS' THEN 1
+                        WHEN 'NOT_WORTH_PACKET' THEN 2
+                        WHEN 'BLOCKED' THEN 3
+                        ELSE 4
+                    END,
+                    score DESC,
+                    id
+                """
+            ).fetchall()
+        return [
+            {
+                "job_id": int(row["id"]),
+                "company": row["company"],
+                "title": row["title"],
+                "score": row["score"],
+                "verdict": row["verdict"],
+                "submission_policy": row["submission_policy"],
+                "packet_status": row["packet_status"] or "UNASSESSED",
+                "claim_gaps": json.loads(row["claim_gaps_json"] or "[]"),
+                "apply_url": row["apply_url"],
+                "recommended_next_action": row["recommended_next_action"] or "",
+                "reason_codes": json.loads(
+                    row["packet_reason_codes_json"] or "[]"
+                ),
+            }
+            for row in rows
+        ]
+
+    def source_quality_report(self) -> dict[str, Any]:
+        with self.connect() as connection:
+            runs = connection.execute(
+                """
+                SELECT status, jobs_seen, jobs_written
+                FROM source_runs
+                """
+            ).fetchall()
+            jobs = connection.execute(
+                """
+                SELECT score, verdict, score_details_json, packet_status,
+                       packet_reason_codes_json
+                FROM jobs
+                WHERE score IS NOT NULL
+                """
+            ).fetchall()
+        no_packet_reasons: dict[str, int] = {}
+        target_level_matches = 0
+        function_matches = 0
+        verdicts = {
+            "APPLY_PRIORITY": 0,
+            "GOOD_FIT": 0,
+            "MAYBE": 0,
+            "NOT_WORTH_TIME": 0,
+            "BLOCKED": 0,
+        }
+        packet_statuses = {
+            "PACKET_READY": 0,
+            "REVIEW_PACKET_CLAIM_GAPS": 0,
+            "NOT_WORTH_PACKET": 0,
+            "BLOCKED": 0,
+        }
+        for row in jobs:
+            details = json.loads(row["score_details_json"] or "{}")
+            dimensions = details.get("dimensions") or {}
+            if int(dimensions.get("seniority") or 0) > 0:
+                target_level_matches += 1
+            if int(dimensions.get("function_fit") or 0) > 0:
+                function_matches += 1
+            verdict = str(row["verdict"] or "")
+            if verdict in verdicts:
+                verdicts[verdict] += 1
+            packet_status = str(row["packet_status"] or "")
+            if packet_status in packet_statuses:
+                packet_statuses[packet_status] += 1
+            if packet_status in {"NOT_WORTH_PACKET", "BLOCKED"}:
+                for reason in json.loads(
+                    row["packet_reason_codes_json"] or "[]"
+                ):
+                    no_packet_reasons[reason] = no_packet_reasons.get(reason, 0) + 1
+        return {
+            "sources_attempted": len(runs),
+            "sources_succeeded": sum(row["status"] == "COMPLETED" for row in runs),
+            "jobs_discovered": sum(int(row["jobs_seen"]) for row in runs),
+            "jobs_after_dedupe": len(jobs),
+            "target_level_matches": target_level_matches,
+            "function_matches": function_matches,
+            "apply_priority": verdicts["APPLY_PRIORITY"],
+            "good_fit": verdicts["GOOD_FIT"],
+            "maybe": verdicts["MAYBE"],
+            "not_worth_time": verdicts["NOT_WORTH_TIME"],
+            "packets_ready": packet_statuses["PACKET_READY"],
+            "review_packets_claim_gaps": packet_statuses[
+                "REVIEW_PACKET_CLAIM_GAPS"
+            ],
+            "blocked": packet_statuses["BLOCKED"],
+            "no_packet_reason_counts": no_packet_reasons,
         }
 
     def daily_metrics(self, day: str) -> dict[str, Any]:
@@ -797,6 +993,11 @@ class Database:
                 "score",
                 "verdict",
                 "score_details_json",
+                "submission_policy",
+                "packet_status",
+                "claim_gaps_json",
+                "packet_reason_codes_json",
+                "recommended_next_action",
             )
         }
         return Job(**fields)

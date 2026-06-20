@@ -1,57 +1,155 @@
-# Curated public ATS board identifiers for dry-run discovery.
-# Highspot is enabled because its public GET board was validated on 2026-06-19.
-# All other sources remain disabled until enabled individually after validation.
+# Public GET-only ATS sources for measured dry-run discovery.
+# Enabled identifiers were validated on 2026-06-19. Discovery authority never
+# grants application-submission authority.
 companies:
-  - name: Figma
+  - company: Figma
     ats: greenhouse
     board_token: figma
-    focus:
+    enabled: true
+    scan_limit: 10
+    target_relevance:
+      - B2B SaaS
+      - design technology
       - growth marketing
       - lifecycle
       - marketing operations
-    enabled: false
+    notes: Validated public Greenhouse GET board.
+    source_url: https://boards-api.greenhouse.io/v1/boards/figma/jobs?content=true
 
-  - name: Datadog
+  - company: Datadog
     ats: greenhouse
     board_token: datadog
-    focus:
+    enabled: true
+    scan_limit: 10
+    target_relevance:
+      - data and analytics
+      - cybersecurity
+      - B2B SaaS
       - demand generation
-      - growth
       - marketing operations
-    enabled: false
+    notes: Validated public Greenhouse GET board.
+    source_url: https://boards-api.greenhouse.io/v1/boards/datadog/jobs?content=true
 
-  - name: Highspot
+  - company: Highspot
     ats: lever
     site: highspot
-    focus:
-      - go-to-market
-      - revenue systems
-      - demand generation
     enabled: true
+    scan_limit: 10
+    target_relevance:
+      - revenue and GTM tooling
+      - B2B SaaS
+      - demand generation
+      - revenue systems
+    notes: Validated public Lever GET board.
+    source_url: https://api.lever.co/v0/postings/highspot?mode=json
 
-  - name: Outreach
+  - company: Outreach
     ats: lever
     site: outreach
-    focus:
-      - revenue systems
+    enabled: true
+    scan_limit: 10
+    target_relevance:
+      - revenue and GTM tooling
+      - B2B SaaS
       - GTM strategy
-      - marketing
-    enabled: false
+      - revenue systems
+    notes: Validated public Lever GET board.
+    source_url: https://api.lever.co/v0/postings/outreach?mode=json
 
-  - name: Ramp
+  - company: Ramp
     ats: ashby
     board_name: ramp
-    focus:
+    enabled: true
+    scan_limit: 10
+    target_relevance:
+      - fintech
+      - high-growth software
       - growth marketing
       - lifecycle
-      - GTM systems
-    enabled: false
+    notes: Validated public Ashby GET board.
+    source_url: https://api.ashbyhq.com/posting-api/job-board/ramp?includeCompensation=true
 
-  - name: Deel
+  - company: Deel
     ats: ashby
     board_name: deel
-    focus:
+    enabled: true
+    scan_limit: 10
+    target_relevance:
+      - B2B SaaS
+      - high-growth software
       - demand generation
       - marketing operations
-      - growth
+    notes: Validated public Ashby GET board.
+    source_url: https://api.ashbyhq.com/posting-api/job-board/deel?includeCompensation=true
+
+  - company: Braze
+    ats: greenhouse
+    board_token: braze
     enabled: false
+    scan_limit: 10
+    target_relevance:
+      - martech
+      - lifecycle marketing
+      - growth marketing
+    notes: Likely public board; verify the current identifier before enabling.
+    source_url: https://boards-api.greenhouse.io/v1/boards/braze/jobs?content=true
+
+  - company: Wiz
+    ats: greenhouse
+    board_token: wizinc
+    enabled: false
+    scan_limit: 10
+    target_relevance:
+      - cybersecurity
+      - B2B SaaS
+      - demand generation
+    notes: Likely public board; verify the current identifier before enabling.
+    source_url: https://boards-api.greenhouse.io/v1/boards/wizinc/jobs?content=true
+
+  - company: Gong
+    ats: lever
+    site: gong
+    enabled: false
+    scan_limit: 10
+    target_relevance:
+      - revenue and GTM tooling
+      - AI
+      - B2B SaaS
+    notes: Likely public board; verify the current identifier before enabling.
+    source_url: https://api.lever.co/v0/postings/gong?mode=json
+
+  - company: Vanta
+    ats: ashby
+    board_name: vanta
+    enabled: false
+    scan_limit: 10
+    target_relevance:
+      - cybersecurity
+      - B2B SaaS
+      - high-growth software
+    notes: Likely public board; verify the current identifier before enabling.
+    source_url: https://api.ashbyhq.com/posting-api/job-board/vanta?includeCompensation=true
+
+  - company: dbt Labs
+    ats: greenhouse
+    board_token: dbtlabs
+    enabled: false
+    scan_limit: 10
+    target_relevance:
+      - data and analytics
+      - B2B SaaS
+      - developer tooling
+    notes: Likely public board; verify the current identifier before enabling.
+    source_url: https://boards-api.greenhouse.io/v1/boards/dbtlabs/jobs?content=true
+
+  - company: 6sense
+    ats: greenhouse
+    board_token: 6sense
+    enabled: false
+    scan_limit: 10
+    target_relevance:
+      - martech
+      - ABM and intent
+      - revenue and GTM tooling
+    notes: Likely public board; verify the current identifier before enabling.
+    source_url: https://boards-api.greenhouse.io/v1/boards/6sense/jobs?content=true

@@ -63,9 +63,14 @@ def score_job(job: Job, config: dict[str, Any]) -> ScoreResult:
         risk_flags.append("No strong target-function keyword match.")
 
     reject_keywords = _contains_any(corpus, config.get("reject_keywords", []))
-    if reject_keywords:
+    title_target_functions = _contains_any(
+        title, config.get("target_keywords", [])
+    )
+    pure_sales_title = "sales" in title and not title_target_functions
+    if reject_keywords or pure_sales_title:
         dimensions["role_mismatch"] = -18
-        risk_flags.append(f"Role mismatch signal: {', '.join(reject_keywords[:3])}")
+        mismatch = reject_keywords[:3] or ["generic sales title"]
+        risk_flags.append(f"Role mismatch signal: {', '.join(mismatch)}")
     else:
         dimensions["role_mismatch"] = 0
 

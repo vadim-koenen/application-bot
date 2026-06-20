@@ -17,6 +17,7 @@ The command initializes SQLite, scans enabled public ATS boards, continues past
 individual source failures, deduplicates and scores jobs, evaluates submission
 policy, exports packets for `APPLY_PRIORITY` and `GOOD_FIT`, queues email
 opportunities, renders email previews, and writes Markdown and JSON reports.
+Every scored job receives a packet status and reason codes before reporting.
 
 ## Enable or disable sources
 
@@ -29,8 +30,9 @@ Edit only `enabled` in `config/live_company_registry.yaml`:
   enabled: true
 ```
 
-Confirm the public careers URL before enabling a company. Start with one source,
-run with a small `--limit`, inspect the source-run report, then expand.
+Confirm the public careers URL before enabling a disabled company. Use
+`target_relevance`, `notes`, `source_url`, and `scan_limit` to keep expansion
+measured.
 
 ## Inspect output
 
@@ -38,6 +40,12 @@ run with a small `--limit`, inspect the source-run report, then expand.
 - Email previews: `exports/email_previews/YYYY-MM-DD/`
 - Daily reports: `exports/reports/`
 - CRM: `data/application_bot.sqlite`
+
+```bash
+python3 -m application_bot.main source-report --db data/application_bot.sqlite
+python3 -m application_bot.main review-queue --db data/application_bot.sqlite --out exports/review
+python3 -m application_bot.main export-review-csv --db data/application_bot.sqlite --out exports/review.csv
+```
 
 ## Offline and partial runs
 

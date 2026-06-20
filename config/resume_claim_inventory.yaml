@@ -1,0 +1,118 @@
+identity:
+  name: Vadim Koenen
+
+contact_assets:
+  website: https://vadimkoenen.com/
+  linkedin: https://linkedin.com/in/vadimkoenen
+
+current_business_identity:
+  primary: Koenen Revenue Systems
+  aliases:
+    - KRS
+  approved_display: Koenen Revenue Systems (KRS)
+
+target_roles:
+  - Growth Marketing
+  - Demand Generation
+  - Revenue Systems
+  - GTM Systems
+  - GTM Strategy
+  - Marketing Operations
+  - Lifecycle Marketing
+  - Performance Marketing
+  - AI-enabled GTM transformation
+
+approved_positioning_themes:
+  - GTM systems architecture
+  - revenue systems
+  - marketing operations
+  - demand generation
+  - AI-enabled GTM workflows
+  - data quality and lifecycle operations
+  - CRM/ABM/intent-based segmentation
+  - campaign operations and performance measurement
+
+approved_skill_keywords:
+  - growth marketing
+  - demand generation
+  - revenue systems
+  - GTM systems
+  - GTM strategy
+  - marketing operations
+  - lifecycle marketing
+  - performance marketing
+  - AI-enabled GTM workflows
+  - data quality
+  - lifecycle operations
+  - campaign operations
+  - performance measurement
+  - CRM
+  - ABM
+  - intent-based segmentation
+
+approved_tools_platforms:
+  - CRM systems
+  - ABM platforms
+  - intent data platforms
+  - marketing automation platforms
+  - analytics and performance measurement systems
+
+approved_experience_claims:
+  - id: current_business_identity
+    text: Current professional identity is Koenen Revenue Systems (KRS).
+  - id: approved_positioning_scope
+    text: Professional positioning covers GTM systems, revenue systems, marketing operations, demand generation, and AI-enabled GTM workflows.
+  - id: public_contact_assets
+    text: Public professional context is available through vadimkoenen.com and the approved LinkedIn profile.
+
+approved_metrics: []
+
+prohibited_or_unverified_claims:
+  - id: years_of_experience
+    description: Any exact years-of-experience statement requires user approval.
+    patterns:
+      - "\\b\\d{1,2}\\+?\\s+years?\\b"
+  - id: degrees
+    description: Degrees and fields of study are not verified.
+    patterns:
+      - "\\b(bachelor|bachelor's|master|master's|mba|phd|degree)\\b"
+  - id: certifications
+    description: Certifications are not verified.
+    patterns:
+      - "\\b(certified|certification|certificate)\\b"
+  - id: employment_history
+    description: Prior employers, titles, and employment dates are not verified.
+    patterns:
+      - "\\bprevious employer\\b"
+  - id: quantified_achievements
+    description: Revenue, pipeline, growth, conversion, or cost metrics require approval.
+    patterns:
+      - "\\b(increased|grew|generated|delivered|reduced|improved)\\b.{0,40}\\b\\d+(?:\\.\\d+)?%?\\b"
+  - id: work_authorization
+    description: Work authorization and sponsorship answers require user confirmation.
+    patterns:
+      - "\\b(work authorization|authorized to work|visa|sponsorship)\\b"
+  - id: compensation_history
+    description: Compensation history and expectations require user confirmation.
+    patterns:
+      - "\\b(compensation history|salary history|current compensation)\\b"
+  - id: named_tool_proficiency
+    description: Proficiency in a named vendor platform requires user approval.
+    patterns:
+      - "\\b(expert|expertise|proficient|certified)\\s+(in|with)\\b"
+
+claims_requiring_user_approval_before_use:
+  - Exact years of experience
+  - Degrees, certifications, and formal credentials
+  - Prior employers, job titles, and employment dates
+  - Quantified revenue, pipeline, growth, conversion, or cost achievements
+  - Named-platform proficiency or certification
+  - Work authorization, sponsorship, compensation, and legal attestations
+
+claim_substitution_rules:
+  - when: A posting requests an unverified achievement or metric.
+    use: State the approved positioning theme and add a claim_gap for user review.
+  - when: A posting requests exact tenure, degree, certification, or named-tool proficiency.
+    use: Do not answer affirmatively; add the corresponding claim_gap.
+  - when: A posting uses an unapproved keyword.
+    use: Do not mirror it as candidate experience; retain it only in the raw job excerpt.

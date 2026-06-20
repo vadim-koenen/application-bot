@@ -14,6 +14,9 @@ SQLite is the default system of record. The database path comes from `config/def
 - `email_queue`: packet-backed email opportunities, preview paths, compliance
   flags, and send state.
 
+The `jobs` table also stores submission policy, packet status, claim gaps,
+reason codes, and the recommended next action.
+
 ## Deduplication
 
 The unique key is a SHA-256 hash of normalized:
@@ -43,3 +46,7 @@ Review-queue adapters may enter as `REVIEW_REQUIRED`. `BLOCKED` is reserved for 
 `application-bot daily-report` writes Markdown and JSON with discoveries,
 scores, verdicts, packet and preview counts, submitted applications, compliance
 blocks, and recommended next actions.
+
+`source-report`, `review-queue`, and `export-review-csv` expose measured source
+quality and one conversion record per scored job, including jobs without a
+packet.

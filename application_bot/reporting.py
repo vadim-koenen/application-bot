@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from datetime import date
 import json
 from pathlib import Path
 from typing import Any
 
 from application_bot.database import Database
+from application_bot.models import utc_now
 
 
 def build_daily_report(
@@ -14,13 +14,18 @@ def build_daily_report(
     day: str | None = None,
     pipeline: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    report = database.daily_metrics(day or date.today().isoformat())
+    report = database.daily_metrics(day or utc_now()[:10])
     report["pipeline"] = pipeline or {}
+    report["source_quality"] = database.source_quality_report()
     actions: list[str] = []
     if report["verdicts"]["APPLY_PRIORITY"]:
         actions.append("Review APPLY_PRIORITY packets first.")
     if report["verdicts"]["GOOD_FIT"]:
         actions.append("Review GOOD_FIT packets after priority roles.")
+    if report["source_quality"]["review_packets_claim_gaps"]:
+        actions.append(
+            "Resolve claim gaps in exported review packets before applying."
+        )
     if report["email_previews_generated"]:
         actions.append("Inspect email previews; do not send without explicit live approval.")
     if report["compliance_blocks"]:
@@ -39,8 +44,22 @@ def render_daily_report_markdown(report: dict[str, Any]) -> str:
         f"- {action}" for action in report["next_recommended_actions"]
     )
     pipeline = report.get("pipeline") or {}
-    network_status = pipeline.get("network_status", "not_reported")
-    real_network_scan = bool(pipeline.get("real_network_scan", False))
+    quality = report.get("source_quality") or {}
+    attempted = int(quality.get("sources_attempted") or 0)
+    succeeded = int(quality.get("sources_succeeded") or 0)
+    inferred_status = (
+        "not_attempted"
+        if attempted == 0
+        else "complete"
+        if attempted == succeeded
+        else "partial"
+        if succeeded
+        else "failed"
+    )
+    network_status = pipeline.get("network_status", inferred_status)
+    real_network_scan = bool(
+        pipeline.get("real_network_scan", succeeded > 0)
+    )
     return f"""# Application Bot Daily Report — {report['date']}
 
 ## Activity
@@ -56,6 +75,12 @@ def render_daily_report_markdown(report: dict[str, Any]) -> str:
 - Email previews generated: {report['email_previews_generated']}
 - Applications submitted: {report['applications_submitted']}
 - Compliance blocks: {report['compliance_blocks']}
+- Packets ready: {quality.get('packets_ready', 0)}
+- Review packets with claim gaps: {quality.get('review_packets_claim_gaps', 0)}
+
+## Packet Conversion
+
+- No-packet reason counts: {json.dumps(quality.get('no_packet_reason_counts', {}), sort_keys=True)}
 
 ## Network Scan
 

@@ -63,7 +63,13 @@ email_send_approval_phrase: ""
 database_path: data/application_bot.sqlite
 export_path: exports
 live_company_registry: config/live_company_registry.yaml
+resume_claim_inventory: config/resume_claim_inventory.yaml
 pipeline_limit: 25
+
+packet_thresholds:
+  ready_min_score: 65
+  review_min_score: 45
+  strong_function_points: 10
 
 scheduler:
   enabled: false

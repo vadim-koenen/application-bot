@@ -64,6 +64,13 @@ class ConfirmationStatus(StrEnum):
     FOLLOW_UP_NEEDED = "follow_up_needed"
 
 
+class PacketStatus(StrEnum):
+    PACKET_READY = "PACKET_READY"
+    REVIEW_PACKET_CLAIM_GAPS = "REVIEW_PACKET_CLAIM_GAPS"
+    NOT_WORTH_PACKET = "NOT_WORTH_PACKET"
+    BLOCKED = "BLOCKED"
+
+
 @dataclass(slots=True)
 class Job:
     external_id: str
@@ -90,6 +97,11 @@ class Job:
     score: int | None = None
     verdict: str | None = None
     score_details_json: str = "{}"
+    submission_policy: str | None = None
+    packet_status: str | None = None
+    claim_gaps_json: str = "[]"
+    packet_reason_codes_json: str = "[]"
+    recommended_next_action: str | None = None
 
     def __post_init__(self) -> None:
         if not self.content_hash:
@@ -148,7 +160,20 @@ class ApplicationPacket:
     risk_flags: list[str]
     recommended_next_action: str
     policy: str
+    packet_status: str = PacketStatus.PACKET_READY
+    claim_gaps: list[str] = field(default_factory=list)
+    reason_codes: list[str] = field(default_factory=list)
+    approved_claim_ids: list[str] = field(default_factory=list)
     created_at: str = field(default_factory=utc_now)
+
+
+@dataclass(slots=True)
+class PacketAssessment:
+    status: PacketStatus
+    claim_gaps: list[str]
+    reason_codes: list[str]
+    recommended_next_action: str
+    should_export: bool
 
 
 @dataclass(slots=True)

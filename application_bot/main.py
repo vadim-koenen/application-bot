@@ -16,17 +16,27 @@ from application_bot.adapters import (
     ManualJsonAdapter,
     ZipConnectorAdapter,
 )
-from application_bot.config import load_config
+from application_bot.config import load_claim_inventory, load_config
 from application_bot.confirmations import ImportedEmailConfirmationTracker
 from application_bot.database import Database
 from application_bot.email_service import (
     queue_email_applications,
     send_email_applications,
 )
-from application_bot.packets import export_packet, generate_packet, packet_to_dict
+from application_bot.packets import (
+    assess_packet,
+    export_packet,
+    generate_packet,
+    packet_to_dict,
+)
 from application_bot.pipeline import run_dry_pipeline, scan_registry
 from application_bot.policy import evaluate_job_submission_policy
 from application_bot.reporting import write_daily_report
+from application_bot.review import (
+    export_review_csv,
+    export_review_queue,
+    source_report,
+)
 from application_bot.scheduler import run_scheduler_once, scheduler_status
 from application_bot.scoring import score_job
 
@@ -71,6 +81,7 @@ def command_scan(args: argparse.Namespace, config: dict[str, Any]) -> int:
             registry,
             limit=args.limit,
             source_filter=args.source,
+            selection_config=config,
         )
         result["dry_run"] = True
         _print(result)
@@ -145,17 +156,44 @@ def command_score(args: argparse.Namespace, config: dict[str, Any]) -> int:
 def command_export_packets(args: argparse.Namespace, config: dict[str, Any]) -> int:
     database = _db(args, config)
     output_root = args.out or config["export_path"]
+    inventory = load_claim_inventory(config["resume_claim_inventory"])
     exported: list[str] = []
     skipped: list[dict[str, Any]] = []
     for job in database.list_jobs(scored_only=True):
         policy = evaluate_job_submission_policy(job, config)
-        if str(job.verdict) in {"NOT_WORTH_TIME", "BLOCKED"} or str(policy.decision) == "BLOCKED":
+        assessment = assess_packet(job, config, policy, inventory)
+        database.save_packet_assessment(
+            int(job.id),
+            packet_status=str(assessment.status),
+            claim_gaps=assessment.claim_gaps,
+            reason_codes=assessment.reason_codes,
+            recommended_next_action=assessment.recommended_next_action,
+            submission_policy=str(policy.decision),
+        )
+        if not assessment.should_export:
             skipped.append(
-                {"job_id": job.id, "verdict": job.verdict, "policy": str(policy.decision)}
+                {
+                    "job_id": job.id,
+                    "verdict": job.verdict,
+                    "policy": str(policy.decision),
+                    "packet_status": str(assessment.status),
+                    "reason_codes": assessment.reason_codes,
+                }
             )
             continue
-        packet = generate_packet(job, config, policy)
-        path = export_packet(job, packet, output_root)
+        packet = generate_packet(
+            job,
+            config,
+            policy,
+            inventory=inventory,
+            assessment=assessment,
+        )
+        category = (
+            "ready"
+            if str(assessment.status) == "PACKET_READY"
+            else "review"
+        )
+        path = export_packet(job, packet, Path(output_root) / category)
         database.save_packet(int(job.id), str(path), packet_to_dict(packet))
         exported.append(str(path))
     _print({"exported": len(exported), "paths": exported, "skipped": skipped})
@@ -278,6 +316,27 @@ def command_import_confirmations(
     return 0
 
 
+def command_source_report(args: argparse.Namespace, config: dict[str, Any]) -> int:
+    database = _db(args, config)
+    _print(source_report(database))
+    return 0
+
+
+def command_review_queue(args: argparse.Namespace, config: dict[str, Any]) -> int:
+    database = _db(args, config)
+    _print(export_review_queue(database, args.out))
+    return 0
+
+
+def command_export_review_csv(
+    args: argparse.Namespace,
+    config: dict[str, Any],
+) -> int:
+    database = _db(args, config)
+    _print(export_review_csv(database, args.out))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="application-bot",
@@ -386,6 +445,29 @@ def build_parser() -> argparse.ArgumentParser:
     confirmations.add_argument("--input", required=True)
     confirmations.add_argument("--db")
     confirmations.set_defaults(handler=command_import_confirmations)
+
+    source_report_parser = subparsers.add_parser(
+        "source-report",
+        help="Report source quality, fit matches, and packet conversion",
+    )
+    source_report_parser.add_argument("--db")
+    source_report_parser.set_defaults(handler=command_source_report)
+
+    review_queue_parser = subparsers.add_parser(
+        "review-queue",
+        help="Export the scored-job review queue as Markdown and JSON",
+    )
+    review_queue_parser.add_argument("--db")
+    review_queue_parser.add_argument("--out", required=True)
+    review_queue_parser.set_defaults(handler=command_review_queue)
+
+    review_csv = subparsers.add_parser(
+        "export-review-csv",
+        help="Export the scored-job review queue as CSV",
+    )
+    review_csv.add_argument("--db")
+    review_csv.add_argument("--out", required=True)
+    review_csv.set_defaults(handler=command_export_review_csv)
     return parser
 
 

@@ -2,9 +2,9 @@
 
 Application Bot is a compliance-first, Git-backed job discovery and application workflow for Vadim Koenen. It discovers roles from permitted public ATS APIs or user-supplied files, normalizes and deduplicates them into a SQLite CRM, scores fit, evaluates a separate submission policy, and exports tailored Markdown application packets.
 
-M6–M8 makes the bot operational as a repeatable local dry-run workflow. The
-default runtime still submits zero applications and sends zero email. Public
-ATS adapters never gain submit authority merely because they can discover a job.
+M6–M9 makes the bot operational as a repeatable local dry-run workflow with
+claim-safe packet conversion and an inspectable review queue. The default
+runtime still submits zero applications and sends zero email.
 
 ## What it does
 
@@ -19,6 +19,9 @@ ATS adapters never gain submit authority merely because they can discover a job.
 - Classifies imported Gmail-style confirmation fixtures.
 - Runs one complete dry pipeline cycle manually or from an external local
   scheduler such as launchctl or cron.
+- Grounds packet language in a versioned approved claim inventory.
+- Records a packet outcome and reason codes for every scored job.
+- Exports review queues as Markdown, JSON, and CSV.
 
 ## What it does not do
 
@@ -30,6 +33,8 @@ ATS adapters never gain submit authority merely because they can discover a job.
 - Auto-submit to Greenhouse, Lever, or Ashby by default.
 - Install or start a scheduler automatically.
 - Send email merely because SMTP credentials exist.
+- Copy unverified requirements into candidate claims.
+- Silently discard a scored job without a packet-conversion reason.
 
 ## Quickstart
 
@@ -58,8 +63,20 @@ python3 -m application_bot.main run-dry-pipeline \
   --limit 25
 ```
 
-The registry starts with one small, validated public GET board enabled and all
-other boards disabled. Change only an entry’s `enabled` field to control scans.
+The registry contains measured public GET-only sources across Greenhouse,
+Lever, and Ashby. Change only an entry’s `enabled` field to control scans.
+
+Inspect conversion quality:
+
+```bash
+python3 -m application_bot.main source-report --db /tmp/application_bot_ops.sqlite
+python3 -m application_bot.main review-queue \
+  --db /tmp/application_bot_ops.sqlite \
+  --out /tmp/application_bot_review
+python3 -m application_bot.main export-review-csv \
+  --db /tmp/application_bot_ops.sqlite \
+  --out /tmp/application_bot_review.csv
+```
 
 The repository also includes an executable `application-bot` wrapper. A normal package installation exposes the same name through `pyproject.toml`:
 
@@ -81,15 +98,29 @@ application-bot send-email-applications [--db PATH] --dry-run [--out DIRECTORY]
 application-bot daily-report --db PATH --out PATH
 application-bot scheduler --config FILE [--run-once]
 application-bot import-confirmations --input FILE [--db PATH]
+application-bot source-report [--db PATH]
+application-bot review-queue --db PATH --out PATH
+application-bot export-review-csv --db PATH --out FILE.csv
 application-bot report [--db PATH] [--out REPORT.json]
 application-bot policy-check --job-id ID [--db PATH]
 application-bot mark-applied --job-id ID [--notes TEXT] [--db PATH]
 ```
 
 Operational ATS scans read enabled companies from
-`config/live_company_registry.yaml`. One validated public board is enabled for
-bounded dry-run discovery; the remaining curated entries are disabled. Tests
-use mocked responses and require no network.
+`config/live_company_registry.yaml`. Enabled identifiers were validated as
+public GET endpoints; disabled candidates must be revalidated before use.
+Per-source limits and relevance ranking keep scans bounded.
+
+## Claim-safe packets
+
+`config/resume_claim_inventory.yaml` is the only source for candidate
+positioning language. Job-posting keywords are used only when already approved
+in that inventory. Unsupported candidate facts become claim gaps.
+
+- `PACKET_READY`: target fit and approved claims are sufficient.
+- `REVIEW_PACKET_CLAIM_GAPS`: export a review packet; resolve listed gaps first.
+- `NOT_WORTH_PACKET`: retain explicit reason codes without generating a packet.
+- `BLOCKED`: policy or compliance prevents progression.
 
 ## Configuration
 
@@ -122,11 +153,13 @@ python3 -m compileall -q application_bot tests
 
 ## Next milestones
 
-1. Connect a verified master resume/claim inventory so packet drafts can include evidence-backed achievements.
-2. Enable and validate a small set of public ATS boards in measured dry runs.
+1. Obtain user approval for additional experience claims and evidence-backed metrics.
+2. Tune source selection from measured conversion results.
 3. Connect Gmail read-only confirmation ingestion to the tested tracker interface.
 4. Add a local review UI without widening submission authority.
 
 See [docs/OPERATIONS.md](docs/OPERATIONS.md),
 [docs/EMAIL_TO_APPLY.md](docs/EMAIL_TO_APPLY.md), and
-[docs/SCHEDULER.md](docs/SCHEDULER.md).
+[docs/SCHEDULER.md](docs/SCHEDULER.md),
+[docs/CLAIM_INVENTORY.md](docs/CLAIM_INVENTORY.md), and
+[docs/REVIEW_QUEUE.md](docs/REVIEW_QUEUE.md).

@@ -69,20 +69,28 @@ Accept connector-fed or user-supplied content only. Direct automation is blocked
 ## Registry scans
 
 `config/company_registry.yaml` contains inert examples.
-`config/live_company_registry.yaml` contains a curated operational starting
-list. Highspot is the only initially enabled board after a successful public
-GET validation on June 19, 2026. Turn other companies on one at a time:
+`config/live_company_registry.yaml` contains a measured operational list across
+B2B SaaS, AI, martech, cybersecurity, fintech, data/analytics, and revenue/GTM
+tooling. Enabled identifiers were validated as public GET boards on June 19,
+2026. Each entry includes relevance, notes, source URL, and a per-source limit:
 
 ```yaml
-- name: Example
+- company: Example
   ats: greenhouse
   board_token: example
   enabled: true
+  scan_limit: 10
+  target_relevance:
+    - growth marketing
+  notes: Validate before enabling.
+  source_url: https://boards-api.greenhouse.io/v1/boards/example/jobs?content=true
 ```
 
 `scan --registry ... --dry-run` and `run-dry-pipeline` use public GET endpoints
 only. A failing board records a failed `source_run`; other enabled boards
 continue and the report marks the network scan partial or failed.
+Returned jobs are relevance-ranked before bounded selection; this improves
+target-role yield without changing source permissions.
 
 ## Adding an adapter
 

@@ -49,6 +49,16 @@ def queue_email_applications(
         if packet is None:
             skipped.append({"job_id": job.id, "reason": "missing_packet"})
             continue
+        packet_payload = json.loads(packet["packet_json"] or "{}")
+        if packet_payload.get("packet_status") != "PACKET_READY":
+            skipped.append(
+                {
+                    "job_id": job.id,
+                    "reason": "packet_not_ready",
+                    "packet_status": packet_payload.get("packet_status"),
+                }
+            )
+            continue
         _, created = database.queue_email(
             int(job.id),
             int(packet["id"]),

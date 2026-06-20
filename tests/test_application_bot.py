@@ -123,6 +123,21 @@ def test_pure_sales_ae_scores_lower():
     assert sales.verdict == FitVerdict.NOT_WORTH_TIME
 
 
+def test_generic_sales_director_is_penalized():
+    result = score_job(
+        make_job(
+            title="Director, Mid-Market Sales",
+            department="Sales",
+            description="Lead the sales team and coordinate go-to-market execution.",
+            requirements="Sales leadership.",
+            responsibilities="Own quota and closing.",
+        ),
+        DEFAULT_CONFIG,
+    )
+    assert result.dimensions["role_mismatch"] == -18
+    assert any("generic sales title" in flag for flag in result.risk_flags)
+
+
 def test_workday_adds_friction_penalty():
     normal = score_job(make_job(), DEFAULT_CONFIG)
     workday = score_job(
@@ -192,6 +207,24 @@ def test_greenhouse_mocked_response_normalizes():
     assert jobs[0].title == "Director, Demand Generation"
     assert jobs[0].description == "Lead demand generation."
     assert jobs[0].department == "Growth Marketing"
+
+
+def test_greenhouse_description_can_identify_remote_role():
+    payload = {
+        "jobs": [
+            {
+                "id": 43,
+                "title": "Director, Growth Marketing",
+                "absolute_url": "https://boards.greenhouse.io/acme/jobs/43",
+                "location": {"name": "New York, NY • United States"},
+                "content": "<p>This role may be held remotely in the United States.</p>",
+            }
+        ]
+    }
+    job = GreenhouseAdapter(transport=lambda _: payload).discover_jobs(
+        board_token="acme", company="Acme"
+    )[0]
+    assert job.remote_type == "remote"
 
 
 def test_lever_mocked_response_normalizes():

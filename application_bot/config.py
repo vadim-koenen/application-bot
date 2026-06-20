@@ -57,7 +57,13 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "database_path": "data/application_bot.sqlite",
     "export_path": "exports",
     "live_company_registry": "config/live_company_registry.yaml",
+    "resume_claim_inventory": "config/resume_claim_inventory.yaml",
     "pipeline_limit": 25,
+    "packet_thresholds": {
+        "ready_min_score": 65,
+        "review_min_score": 45,
+        "strong_function_points": 10,
+    },
     "scheduler": {
         "enabled": False,
         "cadence": "daily",
@@ -106,4 +112,32 @@ def load_config(path: str | Path | None = None) -> dict[str, Any]:
 def load_company_registry(path: str | Path) -> list[dict[str, Any]]:
     with Path(path).open("r", encoding="utf-8") as handle:
         payload = yaml.safe_load(handle) or {}
-    return list(payload.get("companies", []))
+    companies = []
+    for entry in payload.get("companies", []):
+        company = dict(entry)
+        company["name"] = str(company.get("name") or company.get("company") or "").strip()
+        if company["name"]:
+            companies.append(company)
+    return companies
+
+
+def load_claim_inventory(path: str | Path) -> dict[str, Any]:
+    with Path(path).open("r", encoding="utf-8") as handle:
+        inventory = yaml.safe_load(handle) or {}
+    required = {
+        "identity",
+        "contact_assets",
+        "current_business_identity",
+        "target_roles",
+        "approved_positioning_themes",
+        "approved_skill_keywords",
+        "approved_tools_platforms",
+        "approved_experience_claims",
+        "approved_metrics",
+        "prohibited_or_unverified_claims",
+        "claim_substitution_rules",
+    }
+    missing = sorted(required - set(inventory))
+    if missing:
+        raise ValueError(f"Claim inventory is missing fields: {', '.join(missing)}")
+    return inventory

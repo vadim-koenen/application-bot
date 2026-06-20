@@ -1,21 +1,26 @@
 from __future__ import annotations
 
 from dataclasses import asdict
-from datetime import date
 import json
 from pathlib import Path
 import re
 from typing import Any
 
-from application_bot.models import ApplicationPacket, Job, PolicyResult
-
-
-PROFILE_FACTS = {
-    "name": "Vadim Koenen",
-    "identity": "Koenen Revenue Systems (KRS)",
-    "website": "https://vadimkoenen.com/",
-    "linkedin": "https://linkedin.com/in/vadimkoenen",
-}
+from application_bot.claims import (
+    approved_claim_map,
+    detect_claim_gaps,
+    matched_approved_keywords,
+    packet_claim_violations,
+)
+from application_bot.config import load_claim_inventory
+from application_bot.models import (
+    ApplicationPacket,
+    Job,
+    PacketAssessment,
+    PacketStatus,
+    PolicyResult,
+    utc_now,
+)
 
 
 def slugify(value: str) -> str:
@@ -23,63 +28,159 @@ def slugify(value: str) -> str:
     return value[:80] or "unknown"
 
 
-def _matched_keywords(job: Job, config: dict[str, Any]) -> list[str]:
-    corpus = " ".join(
-        [job.title, job.department, job.description, job.requirements, job.responsibilities]
-    ).lower()
-    return [
-        keyword
+def assess_packet(
+    job: Job,
+    config: dict[str, Any],
+    policy: PolicyResult,
+    inventory: dict[str, Any],
+) -> PacketAssessment:
+    thresholds = config.get("packet_thresholds", {})
+    ready_min = int(thresholds.get("ready_min_score", 65))
+    review_min = int(thresholds.get("review_min_score", 45))
+    strong_function = int(thresholds.get("strong_function_points", 10))
+    score = int(job.score or 0)
+    details = json.loads(job.score_details_json or "{}")
+    dimensions = details.get("dimensions") or {}
+    seniority = int(dimensions.get("seniority") or 0)
+    function_fit = int(dimensions.get("function_fit") or 0)
+    title_function_match = any(
+        keyword.lower() in job.title.lower()
         for keyword in config.get("target_keywords", [])
-        if keyword.lower() in corpus
-    ][:12]
+    )
+    generic_sales_title = "sales" in job.title.lower() and not title_function_match
+    claim_gaps = detect_claim_gaps(job, inventory)
+
+    if str(policy.decision) == "BLOCKED" or str(job.verdict) == "BLOCKED":
+        return PacketAssessment(
+            PacketStatus.BLOCKED,
+            claim_gaps,
+            ["SUBMISSION_POLICY_BLOCKED"],
+            "Do not proceed; retain the opportunity for audit only.",
+            False,
+        )
+
+    if generic_sales_title:
+        return PacketAssessment(
+            PacketStatus.NOT_WORTH_PACKET,
+            claim_gaps,
+            ["GENERIC_SALES_ROLE"],
+            "Do not generate a packet unless GTM or revenue-systems ownership is central.",
+            False,
+        )
+
+    if (
+        str(job.verdict) in {"APPLY_PRIORITY", "GOOD_FIT"}
+        and score >= ready_min
+    ):
+        if claim_gaps:
+            return PacketAssessment(
+                PacketStatus.REVIEW_PACKET_CLAIM_GAPS,
+                claim_gaps,
+                ["TARGET_FIT", "UNVERIFIED_REQUIRED_CLAIMS"],
+                "Review the listed claim gaps before using this packet.",
+                True,
+            )
+        return PacketAssessment(
+            PacketStatus.PACKET_READY,
+            [],
+            ["TARGET_FIT", "APPROVED_CLAIMS_SUFFICIENT"],
+            "Review the claim-safe packet and complete the application manually.",
+            True,
+        )
+
+    strong_match = seniority > 0 and (
+        function_fit >= strong_function or title_function_match
+    )
+    if score >= review_min and strong_match:
+        review_gaps = claim_gaps or ["manual_fit_review_required"]
+        reasons = ["MAYBE_STRONG_TITLE_FUNCTION_MATCH"]
+        if claim_gaps:
+            reasons.append("UNVERIFIED_REQUIRED_CLAIMS")
+        else:
+            reasons.append("BELOW_PACKET_READY_THRESHOLD")
+        return PacketAssessment(
+            PacketStatus.REVIEW_PACKET_CLAIM_GAPS,
+            review_gaps,
+            reasons,
+            "Review role fit and claim coverage before deciding whether to apply.",
+            True,
+        )
+
+    reason_codes: list[str] = []
+    if seniority <= 0:
+        reason_codes.append("WRONG_OR_UNCLEAR_LEVEL")
+    if function_fit < strong_function:
+        reason_codes.append("WEAK_FUNCTION_MATCH")
+    if score < review_min:
+        reason_codes.append("BELOW_REVIEW_THRESHOLD")
+    if "workday" in job.apply_url.lower():
+        reason_codes.append("HIGH_APPLICATION_FRICTION")
+    return PacketAssessment(
+        PacketStatus.NOT_WORTH_PACKET,
+        claim_gaps,
+        reason_codes or ["NOT_WORTH_PACKET"],
+        "Do not spend packet-review time unless new information materially changes fit.",
+        False,
+    )
 
 
 def generate_packet(
     job: Job,
     config: dict[str, Any],
     policy: PolicyResult,
+    inventory: dict[str, Any] | None = None,
+    assessment: PacketAssessment | None = None,
 ) -> ApplicationPacket:
-    keywords = _matched_keywords(job, config)
-    skills = keywords or [
-        "GTM strategy",
-        "revenue systems",
-        "growth marketing",
-        "marketing operations",
+    inventory = inventory or load_claim_inventory(config["resume_claim_inventory"])
+    assessment = assessment or assess_packet(job, config, policy, inventory)
+    identity = inventory["identity"]
+    contact = inventory["contact_assets"]
+    business = inventory["current_business_identity"]
+    claims = approved_claim_map(inventory)
+    skills = matched_approved_keywords(job, inventory)
+    if not skills:
+        skills = list(inventory.get("approved_positioning_themes", []))[:4]
+    approved_claim_ids = [
+        claim_id
+        for claim_id in (
+            "current_business_identity",
+            "approved_positioning_scope",
+            "public_contact_assets",
+        )
+        if claim_id in claims
     ]
     summary = (
-        f"Executive GTM and growth leader operating through {PROFILE_FACTS['identity']}, "
-        f"positioned for the {job.title} role at {job.company}. "
-        f"Relevant emphasis: {', '.join(skills[:6])}. "
-        "This draft mirrors the role language without adding unverified claims."
+        f"{identity['name']} operates through {business['approved_display']}. "
+        f"For the {job.title} role at {job.company}, the approved positioning "
+        f"themes that match the posting are {', '.join(skills[:6])}. "
+        "This summary uses only the approved claim inventory and does not assert "
+        "unverified tenure, achievements, credentials, employers, or metrics."
     )
     cover_email = (
-        f"Subject: {job.title} — Vadim Koenen\n\n"
+        f"Subject: {job.title} — {identity['name']}\n\n"
         f"Hello {job.company} hiring team,\n\n"
-        f"I’m interested in the {job.title} opportunity. My current work through "
-        f"{PROFILE_FACTS['identity']} centers on GTM, growth, and revenue-system "
-        f"leadership, with particular alignment to {', '.join(skills[:4])}. "
-        f"Additional context is available at {PROFILE_FACTS['website']}\n\n"
-        "I would welcome a conversation about the role and the outcomes your team "
-        "needs from this leader.\n\nBest,\nVadim Koenen"
+        f"I’m interested in the {job.title} opportunity. My current professional "
+        f"positioning through {business['approved_display']} includes "
+        f"{', '.join(skills[:4])}. Additional public context is available at "
+        f"{contact['website']}\n\n"
+        "I would welcome a conversation to assess mutual fit and the role’s "
+        f"priorities.\n\nBest,\n{identity['name']}"
     )
     cover_letter = (
         f"Dear {job.company} Hiring Team,\n\n"
         f"I am writing to express interest in the {job.title} role. My current "
-        f"consulting identity is {PROFILE_FACTS['identity']}, where my positioning "
-        "focuses on growth marketing, GTM systems, revenue operations, and "
-        "AI-enabled transformation. "
-        f"The role’s emphasis on {', '.join(skills[:5])} is especially relevant.\n\n"
-        "I would bring an executive, systems-oriented perspective to aligning "
-        "strategy, operating process, measurement, and cross-functional execution. "
-        "I have intentionally left role-specific achievements out of this draft "
-        "until they can be verified against the source resume.\n\n"
-        f"More information: {PROFILE_FACTS['website']}\n\nSincerely,\nVadim Koenen"
+        f"professional identity is {business['approved_display']}. The approved "
+        f"positioning themes relevant to this posting include {', '.join(skills[:5])}.\n\n"
+        "This draft intentionally avoids background details and results that are "
+        "not present in the approved inventory. Any unsupported requirement is "
+        "listed as a claim gap for review.\n\n"
+        f"More information: {contact['website']}\n\nSincerely,\n{identity['name']}"
     )
     suggested_answers = {
-        "Name": PROFILE_FACTS["name"],
-        "Current company": PROFILE_FACTS["identity"],
-        "Website": PROFILE_FACTS["website"],
-        "LinkedIn": PROFILE_FACTS["linkedin"],
+        "Name": identity["name"],
+        "Current company": business["approved_display"],
+        "Website": contact["website"],
+        "LinkedIn": contact["linkedin"],
         "Location preference": "Remote US preferred; Dallas/Plano/DFW hybrid considered.",
         "Work authorization": "REVIEW_REQUIRED — not supplied in the verified profile.",
         "Compensation expectations": "REVIEW_REQUIRED — confirm against role range.",
@@ -93,18 +194,15 @@ def generate_packet(
         f"Source: {job.source}",
         f"Location: {job.location or 'Not provided'} ({job.remote_type})",
         f"Department: {job.department or 'Not provided'}",
-        "Validate every resume claim before submission.",
+        "Generated only from config/resume_claim_inventory.yaml.",
     ]
+    if assessment.claim_gaps:
+        role_notes.append(
+            f"Claim gaps requiring review: {', '.join(assessment.claim_gaps)}."
+        )
     if policy.requires_human_review:
         role_notes.append("Submission policy requires human review.")
-    action = {
-        "AUTO_SUBMIT_EMAIL": "Review packet and email fields, then permit configured email send.",
-        "AUTO_SUBMIT_ALLOWED": "Review final answers and submit through the explicitly authorized adapter.",
-        "AUTO_PACKET_ONLY": "Review packet and complete the application manually.",
-        "REVIEW_REQUIRED": "Resolve flagged questions or access requirements before proceeding.",
-        "BLOCKED": "Do not automate submission; retain for reference or discard.",
-    }[str(policy.decision)]
-    return ApplicationPacket(
+    packet = ApplicationPacket(
         job_id=int(job.id or 0),
         tailored_summary=summary,
         tailored_skills=skills,
@@ -115,9 +213,20 @@ def generate_packet(
         why_fit=why_fit,
         why_not=why_not,
         risk_flags=risk_flags,
-        recommended_next_action=action,
+        recommended_next_action=assessment.recommended_next_action,
         policy=str(policy.decision),
+        packet_status=str(assessment.status),
+        claim_gaps=assessment.claim_gaps,
+        reason_codes=assessment.reason_codes,
+        approved_claim_ids=approved_claim_ids,
     )
+    violations = packet_claim_violations(packet, inventory)
+    if violations:
+        raise ValueError(
+            "Generated packet contains unapproved claim patterns: "
+            + ", ".join(violations)
+        )
+    return packet
 
 
 def render_packet_markdown(job: Job, packet: ApplicationPacket) -> str:
@@ -141,6 +250,13 @@ def render_packet_markdown(job: Job, packet: ApplicationPacket) -> str:
 - **Score:** {job.score if job.score is not None else "Unscored"}
 - **Verdict:** {job.verdict or "Unscored"}
 - **Submission policy:** {packet.policy}
+- **Packet status:** {packet.packet_status}
+
+## Claim Safety
+
+- **Approved claim IDs:** {", ".join(packet.approved_claim_ids) or "None"}
+- **Claim gaps:** {", ".join(packet.claim_gaps) or "None"}
+- **Reason codes:** {", ".join(packet.reason_codes) or "None"}
 
 ## Tailored Summary
 
@@ -193,7 +309,7 @@ def export_packet(
     packet: ApplicationPacket,
     output_root: str | Path,
 ) -> Path:
-    folder = Path(output_root) / date.today().isoformat()
+    folder = Path(output_root) / utc_now()[:10]
     folder.mkdir(parents=True, exist_ok=True)
     path = folder / f"{slugify(job.company)}_{slugify(job.title)}.md"
     path.write_text(render_packet_markdown(job, packet), encoding="utf-8")

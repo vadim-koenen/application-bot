@@ -13,7 +13,8 @@ python3 -m application_bot.main queue-email-applications \
   --db data/application_bot.sqlite
 ```
 
-A queued job must have a recipient and saved packet.
+A queued job must have a recipient and a saved `PACKET_READY` packet. Review
+packets with unresolved claim gaps are not eligible for email queueing.
 
 `examples/email_jobs.example.json` contains a fake `example.com` recipient for
 safe local preview testing.

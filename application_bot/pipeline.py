@@ -5,13 +5,18 @@ from pathlib import Path
 from typing import Any
 
 from application_bot.adapters import AshbyAdapter, GreenhouseAdapter, LeverAdapter
-from application_bot.config import load_company_registry
+from application_bot.config import load_claim_inventory, load_company_registry
 from application_bot.database import Database
 from application_bot.email_service import (
     queue_email_applications,
     send_email_applications,
 )
-from application_bot.packets import export_packet, generate_packet, packet_to_dict
+from application_bot.packets import (
+    assess_packet,
+    export_packet,
+    generate_packet,
+    packet_to_dict,
+)
 from application_bot.policy import evaluate_job_submission_policy
 from application_bot.reporting import write_daily_report
 from application_bot.scoring import score_job
@@ -42,6 +47,31 @@ def _new_adapter(factory: Any) -> Any:
     return factory() if isinstance(factory, type) else factory
 
 
+def _job_relevance_score(job: Any, config: dict[str, Any] | None) -> int:
+    if not config:
+        return 0
+    title = job.title.lower()
+    corpus = " ".join(
+        (
+            job.title,
+            job.department,
+            job.description,
+            job.requirements,
+            job.responsibilities,
+        )
+    ).lower()
+    title_points = sum(
+        10 for value in config.get("target_titles", []) if value.lower() in title
+    )
+    function_points = sum(
+        3 for value in config.get("target_keywords", []) if value.lower() in corpus
+    )
+    reject_points = sum(
+        8 for value in config.get("reject_titles", []) if value.lower() in title
+    )
+    return title_points + function_points - reject_points
+
+
 def scan_registry(
     database: Database,
     registry_path: str | Path,
@@ -49,6 +79,7 @@ def scan_registry(
     limit: int = 25,
     source_filter: str | None = None,
     adapters: dict[str, Any] | None = None,
+    selection_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     registry = load_company_registry(registry_path)
     adapter_map = adapters or ATS_ADAPTERS
@@ -82,7 +113,14 @@ def scan_registry(
             adapter = _new_adapter(factory)
             jobs = adapter.discover_jobs(**_adapter_kwargs(company))
             remaining = max(0, limit - jobs_seen) if limit >= 0 else len(jobs)
-            selected = jobs[:remaining] if limit >= 0 else jobs
+            per_source_limit = int(company.get("scan_limit") or remaining)
+            selected_limit = min(remaining, per_source_limit)
+            ranked = sorted(
+                jobs,
+                key=lambda job: _job_relevance_score(job, selection_config),
+                reverse=True,
+            )
+            selected = ranked[:selected_limit] if limit >= 0 else ranked[:per_source_limit]
             written = 0
             for job in selected:
                 _, created = database.upsert_job(job)
@@ -94,6 +132,8 @@ def scan_registry(
                 "company": company["name"],
                 "jobs_returned": len(jobs),
                 "jobs_selected": len(selected),
+                "target_relevance": company.get("target_relevance", []),
+                "source_url": company.get("source_url"),
             }
             database.finish_source_run(
                 run_id,
@@ -156,6 +196,7 @@ def run_dry_pipeline(
         registry_path,
         limit=limit,
         adapters=adapters,
+        selection_config=runtime_config,
     )
 
     scored = 0
@@ -179,16 +220,45 @@ def run_dry_pipeline(
                 details={"reasons": policy.reasons},
             )
 
+    inventory = load_claim_inventory(runtime_config["resume_claim_inventory"])
     packet_paths: list[str] = []
+    packet_status_counts: dict[str, int] = {}
+    no_packet_reason_counts: dict[str, int] = {}
     packet_root = Path(output_root) / "packets"
     for job in database.list_jobs(scored_only=True):
-        if str(job.verdict) not in {"APPLY_PRIORITY", "GOOD_FIT"}:
-            continue
         policy = evaluate_job_submission_policy(job, runtime_config)
-        if str(policy.decision) == "BLOCKED":
+        assessment = assess_packet(job, runtime_config, policy, inventory)
+        packet_status = str(assessment.status)
+        packet_status_counts[packet_status] = (
+            packet_status_counts.get(packet_status, 0) + 1
+        )
+        database.save_packet_assessment(
+            int(job.id),
+            packet_status=packet_status,
+            claim_gaps=assessment.claim_gaps,
+            reason_codes=assessment.reason_codes,
+            recommended_next_action=assessment.recommended_next_action,
+            submission_policy=str(policy.decision),
+        )
+        if not assessment.should_export:
+            for reason in assessment.reason_codes:
+                no_packet_reason_counts[reason] = (
+                    no_packet_reason_counts.get(reason, 0) + 1
+                )
             continue
-        packet = generate_packet(job, runtime_config, policy)
-        path = export_packet(job, packet, packet_root)
+        packet = generate_packet(
+            job,
+            runtime_config,
+            policy,
+            inventory=inventory,
+            assessment=assessment,
+        )
+        category = (
+            "ready"
+            if packet_status == "PACKET_READY"
+            else "review"
+        )
+        path = export_packet(job, packet, packet_root / category)
         database.save_packet(int(job.id), str(path), packet_to_dict(packet))
         packet_paths.append(str(path))
 
@@ -199,11 +269,20 @@ def run_dry_pipeline(
         output_root=output_root,
         live=False,
     )
+    quality = database.source_quality_report()
     pipeline_summary = {
         **scan,
+        **quality,
         "jobs_scored": scored,
+        "source_quality": quality,
         "submission_policies": policies,
         "packets_exported": len(packet_paths),
+        "packet_statuses": packet_status_counts,
+        "packets_ready": packet_status_counts.get("PACKET_READY", 0),
+        "review_packets_claim_gaps": packet_status_counts.get(
+            "REVIEW_PACKET_CLAIM_GAPS", 0
+        ),
+        "no_packet_reason_counts": no_packet_reason_counts,
         "packet_paths": packet_paths,
         "email_queue": queue_result,
         "email_previews_generated": email_result["email_previews_generated"],
