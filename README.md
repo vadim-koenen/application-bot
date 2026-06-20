@@ -2,9 +2,10 @@
 
 Application Bot is a compliance-first, Git-backed job discovery and application workflow for Vadim Koenen. It discovers roles from permitted public ATS APIs or user-supplied files, normalizes and deduplicates them into a SQLite CRM, scores fit, evaluates a separate submission policy, and exports tailored Markdown application packets.
 
-M6–M9 makes the bot operational as a repeatable local dry-run workflow with
-claim-safe packet conversion and an inspectable review queue. The default
-runtime still submits zero applications and sends zero email.
+M6–M10 makes the bot operational as a repeatable local dry-run workflow with
+evidence-backed claim approval, claim-safe packet conversion, and an
+inspectable review queue. The default runtime still submits zero applications
+and sends zero email.
 
 ## What it does
 
@@ -22,6 +23,8 @@ runtime still submits zero applications and sends zero email.
 - Grounds packet language in a versioned approved claim inventory.
 - Records a packet outcome and reason codes for every scored job.
 - Exports review queues as Markdown, JSON, and CSV.
+- Exports claim approval packs and a filterable static HTML review dashboard.
+- Re-evaluates stored jobs after explicit claim approval.
 
 ## What it does not do
 
@@ -78,6 +81,22 @@ python3 -m application_bot.main export-review-csv \
   --out /tmp/application_bot_review.csv
 ```
 
+Inspect evidence and refresh packets:
+
+```bash
+python3 -m application_bot.main claims list
+python3 -m application_bot.main claims gaps --db /tmp/application_bot_ops.sqlite
+python3 -m application_bot.main claims export-approval-pack \
+  --db /tmp/application_bot_ops.sqlite \
+  --out /tmp/application_bot_claims
+python3 -m application_bot.main refresh-packets \
+  --db /tmp/application_bot_ops.sqlite \
+  --out /tmp/application_bot_refreshed
+python3 -m application_bot.main export-review-html \
+  --db /tmp/application_bot_ops.sqlite \
+  --out /tmp/application_bot_review.html
+```
+
 The repository also includes an executable `application-bot` wrapper. A normal package installation exposes the same name through `pyproject.toml`:
 
 ```bash
@@ -101,6 +120,9 @@ application-bot import-confirmations --input FILE [--db PATH]
 application-bot source-report [--db PATH]
 application-bot review-queue --db PATH --out PATH
 application-bot export-review-csv --db PATH --out FILE.csv
+application-bot claims {list,gaps,export-approval-pack,approve,reject,import-approvals}
+application-bot refresh-packets --db PATH --out DIRECTORY
+application-bot export-review-html --db PATH --out FILE.html
 application-bot report [--db PATH] [--out REPORT.json]
 application-bot policy-check --job-id ID [--db PATH]
 application-bot mark-applied --job-id ID [--notes TEXT] [--db PATH]
@@ -117,10 +139,20 @@ Per-source limits and relevance ranking keep scans bounded.
 positioning language. Job-posting keywords are used only when already approved
 in that inventory. Unsupported candidate facts become claim gaps.
 
+`config/claim_evidence.yaml` records approval status, evidence source,
+allowed/prohibited contexts, confidence, and verification date.
+`config/application_answer_bank.yaml` keeps legal, background, sponsorship,
+work authorization, and unknown required questions in pending/review status.
+
 - `PACKET_READY`: target fit and approved claims are sufficient.
 - `REVIEW_PACKET_CLAIM_GAPS`: export a review packet; resolve listed gaps first.
 - `NOT_WORTH_PACKET`: retain explicit reason codes without generating a packet.
 - `BLOCKED`: policy or compliance prevents progression.
+
+The default M10 scan can still report zero `PACKET_READY` jobs because exact
+tenure, degree, tool-proficiency, or other requested claims remain pending.
+Those gaps are intentionally not inferred; explicit evidence approval followed
+by `refresh-packets` is what can convert a suitable review packet.
 
 ## Configuration
 
@@ -162,4 +194,7 @@ See [docs/OPERATIONS.md](docs/OPERATIONS.md),
 [docs/EMAIL_TO_APPLY.md](docs/EMAIL_TO_APPLY.md), and
 [docs/SCHEDULER.md](docs/SCHEDULER.md),
 [docs/CLAIM_INVENTORY.md](docs/CLAIM_INVENTORY.md), and
-[docs/REVIEW_QUEUE.md](docs/REVIEW_QUEUE.md).
+[docs/REVIEW_QUEUE.md](docs/REVIEW_QUEUE.md),
+[docs/CLAIM_APPROVAL_WORKFLOW.md](docs/CLAIM_APPROVAL_WORKFLOW.md),
+[docs/ANSWER_BANK.md](docs/ANSWER_BANK.md), and
+[docs/REVIEW_HTML.md](docs/REVIEW_HTML.md).

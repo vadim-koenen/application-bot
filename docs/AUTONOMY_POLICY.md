@@ -11,6 +11,9 @@ Candidate language has a separate boundary:
 `config/resume_claim_inventory.yaml`. A high fit score does not authorize an
 unsupported resume claim.
 
+Claim approval is local evidence state, not submission authority. Even a
+`PACKET_READY` job remains packet-only while live flags are false.
+
 ## Decisions
 
 - `AUTO_SUBMIT_ALLOWED`: an explicitly submit-capable ATS adapter has credentials, known required questions, live mode, and no review trigger.
@@ -39,6 +42,10 @@ CAPTCHA, login requirements, unknown legal attestations, unknown required questi
 Unsupported tenure, education, credentials, employment history, metrics, or
 named-platform proficiency create claim gaps. They produce a review packet when
 role fit warrants one and are never filled from inference.
+
+Legal/background, work authorization, sponsorship, and compensation answers
+remain `REVIEW_REQUIRED`, `PENDING_USER_APPROVAL`, or `DO_NOT_USE` unless Vadim
+explicitly supplies and approves the exact statement.
 
 ## Email live-send gates
 

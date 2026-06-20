@@ -5,7 +5,13 @@ from pathlib import Path
 from typing import Any
 
 from application_bot.adapters import AshbyAdapter, GreenhouseAdapter, LeverAdapter
-from application_bot.config import load_claim_inventory, load_company_registry
+from application_bot.config import (
+    load_answer_bank,
+    load_claim_evidence,
+    load_claim_inventory,
+    load_company_registry,
+)
+from application_bot.claims import claim_counts
 from application_bot.database import Database
 from application_bot.email_service import (
     queue_email_applications,
@@ -221,13 +227,17 @@ def run_dry_pipeline(
             )
 
     inventory = load_claim_inventory(runtime_config["resume_claim_inventory"])
+    evidence = load_claim_evidence(runtime_config["claim_evidence"])
+    answer_bank = load_answer_bank(runtime_config["application_answer_bank"])
     packet_paths: list[str] = []
     packet_status_counts: dict[str, int] = {}
     no_packet_reason_counts: dict[str, int] = {}
     packet_root = Path(output_root) / "packets"
     for job in database.list_jobs(scored_only=True):
         policy = evaluate_job_submission_policy(job, runtime_config)
-        assessment = assess_packet(job, runtime_config, policy, inventory)
+        assessment = assess_packet(
+            job, runtime_config, policy, inventory, evidence
+        )
         packet_status = str(assessment.status)
         packet_status_counts[packet_status] = (
             packet_status_counts.get(packet_status, 0) + 1
@@ -251,6 +261,8 @@ def run_dry_pipeline(
             runtime_config,
             policy,
             inventory=inventory,
+            evidence=evidence,
+            answer_bank=answer_bank,
             assessment=assessment,
         )
         category = (
@@ -296,8 +308,57 @@ def run_dry_pipeline(
         database,
         Path(output_root) / "reports",
         pipeline=pipeline_summary,
+        claim_readiness=claim_counts(evidence),
         directory_mode=True,
     )
     pipeline_summary["daily_report_markdown"] = report["markdown_path"]
     pipeline_summary["daily_report_json"] = report["json_path"]
     return pipeline_summary
+
+
+def refresh_packets(
+    *,
+    database: Database,
+    output_root: str | Path,
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    inventory = load_claim_inventory(config["resume_claim_inventory"])
+    evidence = load_claim_evidence(config["claim_evidence"])
+    answer_bank = load_answer_bank(config["application_answer_bank"])
+    paths: list[str] = []
+    statuses: dict[str, int] = {}
+    for job in database.list_jobs(scored_only=True):
+        policy = evaluate_job_submission_policy(job, config)
+        assessment = assess_packet(job, config, policy, inventory, evidence)
+        status = str(assessment.status)
+        statuses[status] = statuses.get(status, 0) + 1
+        database.save_packet_assessment(
+            int(job.id),
+            packet_status=status,
+            claim_gaps=assessment.claim_gaps,
+            reason_codes=assessment.reason_codes,
+            recommended_next_action=assessment.recommended_next_action,
+            submission_policy=str(policy.decision),
+        )
+        if not assessment.should_export:
+            continue
+        packet = generate_packet(
+            job,
+            config,
+            policy,
+            inventory=inventory,
+            evidence=evidence,
+            answer_bank=answer_bank,
+            assessment=assessment,
+        )
+        category = "ready" if status == "PACKET_READY" else "review"
+        path = export_packet(job, packet, Path(output_root) / category)
+        database.save_packet(int(job.id), str(path), packet_to_dict(packet))
+        paths.append(str(path))
+    return {
+        "jobs_reassessed": len(database.list_jobs(scored_only=True)),
+        "packet_statuses": statuses,
+        "packets_exported": len(paths),
+        "packet_paths": paths,
+        "applications_submitted": 0,
+    }

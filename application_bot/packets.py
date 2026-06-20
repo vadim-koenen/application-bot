@@ -7,12 +7,21 @@ import re
 from typing import Any
 
 from application_bot.claims import (
-    approved_claim_map,
+    approved_evidence_claims,
+    blocked_claim_ids,
+    claim_is_approved,
     detect_claim_gaps,
     matched_approved_keywords,
     packet_claim_violations,
+    safe_rewrites_for_gaps,
+    unresolved_claim_gaps,
 )
-from application_bot.config import load_claim_inventory
+from application_bot.answers import build_answer_draft
+from application_bot.config import (
+    load_answer_bank,
+    load_claim_evidence,
+    load_claim_inventory,
+)
 from application_bot.models import (
     ApplicationPacket,
     Job,
@@ -33,7 +42,9 @@ def assess_packet(
     config: dict[str, Any],
     policy: PolicyResult,
     inventory: dict[str, Any],
+    evidence: dict[str, Any] | None = None,
 ) -> PacketAssessment:
+    evidence = evidence or load_claim_evidence(config["claim_evidence"])
     thresholds = config.get("packet_thresholds", {})
     ready_min = int(thresholds.get("ready_min_score", 65))
     review_min = int(thresholds.get("review_min_score", 45))
@@ -48,7 +59,8 @@ def assess_packet(
         for keyword in config.get("target_keywords", [])
     )
     generic_sales_title = "sales" in job.title.lower() and not title_function_match
-    claim_gaps = detect_claim_gaps(job, inventory)
+    detected_gaps = detect_claim_gaps(job, inventory)
+    claim_gaps = unresolved_claim_gaps(detected_gaps, evidence)
 
     if str(policy.decision) == "BLOCKED" or str(job.verdict) == "BLOCKED":
         return PacketAssessment(
@@ -129,37 +141,86 @@ def generate_packet(
     config: dict[str, Any],
     policy: PolicyResult,
     inventory: dict[str, Any] | None = None,
+    evidence: dict[str, Any] | None = None,
+    answer_bank: dict[str, Any] | None = None,
     assessment: PacketAssessment | None = None,
 ) -> ApplicationPacket:
     inventory = inventory or load_claim_inventory(config["resume_claim_inventory"])
-    assessment = assessment or assess_packet(job, config, policy, inventory)
+    evidence = evidence or load_claim_evidence(config["claim_evidence"])
+    answer_bank = answer_bank or load_answer_bank(config["application_answer_bank"])
+    assessment = assessment or assess_packet(
+        job, config, policy, inventory, evidence
+    )
     identity = inventory["identity"]
     contact = inventory["contact_assets"]
     business = inventory["current_business_identity"]
-    claims = approved_claim_map(inventory)
     skills = matched_approved_keywords(job, inventory)
     if not skills:
         skills = list(inventory.get("approved_positioning_themes", []))[:4]
     approved_claim_ids = [
-        claim_id
-        for claim_id in (
-            "current_business_identity",
-            "approved_positioning_scope",
-            "public_contact_assets",
-        )
-        if claim_id in claims
+        str(claim["claim_id"])
+        for claim in approved_evidence_claims(evidence, context="packet_text")
+        if claim["claim_id"]
+        in {
+            "identity_name",
+            "company_identity",
+            "website",
+            "linkedin",
+            "current_positioning",
+            "target_functions",
+            "krs_positioning",
+            "approved_platform_keywords",
+            "geography_preference",
+        }
     ]
+    approved_claim_ids.extend(
+        gap_id
+        for gap_id in detect_claim_gaps(job, inventory)
+        if gap_id not in assessment.claim_gaps
+        and gap_id not in approved_claim_ids
+    )
+    current_positioning = business["approved_display"]
+    if claim_is_approved(
+        "current_positioning", evidence, context="packet_text"
+    ):
+        current_positioning = next(
+            (
+                str(claim["claim_text"])
+                for claim in evidence.get("claims", [])
+                if claim.get("claim_id") == "current_positioning"
+            ),
+            current_positioning,
+        )
+    fit_summary = (
+        f"{job.title} at {job.company} scored {job.score if job.score is not None else 'unscored'} "
+        f"with verdict {job.verdict or 'unscored'}. Packet outcome: "
+        f"{assessment.status}."
+    )
     summary = (
-        f"{identity['name']} operates through {business['approved_display']}. "
+        f"{identity['name']} is positioned as {current_positioning} through "
+        f"{business['approved_display']}. "
         f"For the {job.title} role at {job.company}, the approved positioning "
         f"themes that match the posting are {', '.join(skills[:6])}. "
         "This summary uses only the approved claim inventory and does not assert "
         "unverified tenure, achievements, credentials, employers, or metrics."
     )
+    cover_email_entry = (
+        answer_bank.get("answers", {}).get("cover_email_base", {})
+    )
+    cover_email_base = (
+        str(cover_email_entry.get("value"))
+        if cover_email_entry.get("status") == "APPROVED"
+        and claim_is_approved(
+            str(cover_email_entry.get("claim_id") or ""),
+            evidence,
+            context="application_answer",
+        )
+        else "I am interested in this opportunity and would welcome a conversation."
+    )
     cover_email = (
         f"Subject: {job.title} — {identity['name']}\n\n"
         f"Hello {job.company} hiring team,\n\n"
-        f"I’m interested in the {job.title} opportunity. My current professional "
+        f"{cover_email_base} My current professional "
         f"positioning through {business['approved_display']} includes "
         f"{', '.join(skills[:4])}. Additional public context is available at "
         f"{contact['website']}\n\n"
@@ -176,16 +237,7 @@ def generate_packet(
         "listed as a claim gap for review.\n\n"
         f"More information: {contact['website']}\n\nSincerely,\n{identity['name']}"
     )
-    suggested_answers = {
-        "Name": identity["name"],
-        "Current company": business["approved_display"],
-        "Website": contact["website"],
-        "LinkedIn": contact["linkedin"],
-        "Location preference": "Remote US preferred; Dallas/Plano/DFW hybrid considered.",
-        "Work authorization": "REVIEW_REQUIRED — not supplied in the verified profile.",
-        "Compensation expectations": "REVIEW_REQUIRED — confirm against role range.",
-        "Legal attestations": "REVIEW_REQUIRED — answer personally; never infer.",
-    }
+    suggested_answers = {"Name": identity["name"], **build_answer_draft(answer_bank, evidence)}
     score_details = json.loads(job.score_details_json or "{}")
     why_fit = list(score_details.get("reasons") or [])
     risk_flags = list(score_details.get("risk_flags") or [])
@@ -204,6 +256,7 @@ def generate_packet(
         role_notes.append("Submission policy requires human review.")
     packet = ApplicationPacket(
         job_id=int(job.id or 0),
+        fit_summary=fit_summary,
         tailored_summary=summary,
         tailored_skills=skills,
         cover_email=cover_email,
@@ -219,6 +272,11 @@ def generate_packet(
         claim_gaps=assessment.claim_gaps,
         reason_codes=assessment.reason_codes,
         approved_claim_ids=approved_claim_ids,
+        pending_claims_not_used=assessment.claim_gaps,
+        safe_substitutions=safe_rewrites_for_gaps(
+            assessment.claim_gaps, evidence
+        ),
+        blocked_claims=blocked_claim_ids(assessment.claim_gaps, evidence),
     )
     violations = packet_claim_violations(packet, inventory)
     if violations:
@@ -257,6 +315,17 @@ def render_packet_markdown(job: Job, packet: ApplicationPacket) -> str:
 - **Approved claim IDs:** {", ".join(packet.approved_claim_ids) or "None"}
 - **Claim gaps:** {", ".join(packet.claim_gaps) or "None"}
 - **Reason codes:** {", ".join(packet.reason_codes) or "None"}
+
+## Fit Summary
+
+{packet.fit_summary}
+
+## Claim Audit
+
+- **Approved claims used:** {", ".join(packet.approved_claim_ids) or "None"}
+- **Pending claims not used:** {", ".join(packet.pending_claims_not_used) or "None"}
+- **Safe substitutions used:** {", ".join(packet.safe_substitutions) or "None"}
+- **Blocked claims:** {", ".join(packet.blocked_claims) or "None"}
 
 ## Tailored Summary
 

@@ -7,13 +7,16 @@ All automated tests are offline. ATS responses are injected as mocked JSON; no e
 ```bash
 python3 -m pytest -q
 python3 -m application_bot.main --help
-python3 -m application_bot.main init-db --db /tmp/application_bot_m9.sqlite
-python3 -m application_bot.main run-dry-pipeline --registry config/live_company_registry.yaml --db /tmp/application_bot_m9.sqlite --out /tmp/application_bot_m9_exports --limit 50
-python3 -m application_bot.main source-report --db /tmp/application_bot_m9.sqlite
-python3 -m application_bot.main review-queue --db /tmp/application_bot_m9.sqlite --out /tmp/application_bot_m9_review
-python3 -m application_bot.main export-review-csv --db /tmp/application_bot_m9.sqlite --out /tmp/application_bot_m9_review.csv
-python3 -m application_bot.main daily-report --db /tmp/application_bot_m9.sqlite --out /tmp/application_bot_m9_report
-python3 -m application_bot.main report --db /tmp/application_bot_m9.sqlite
+python3 -m application_bot.main init-db --db /tmp/application_bot_m10.sqlite
+python3 -m application_bot.main run-dry-pipeline --registry config/live_company_registry.yaml --db /tmp/application_bot_m10.sqlite --out /tmp/application_bot_m10_exports --limit 50
+python3 -m application_bot.main claims list
+python3 -m application_bot.main claims gaps --db /tmp/application_bot_m10.sqlite
+python3 -m application_bot.main claims export-approval-pack --db /tmp/application_bot_m10.sqlite --out /tmp/application_bot_m10_claims
+python3 -m application_bot.main refresh-packets --db /tmp/application_bot_m10.sqlite --out /tmp/application_bot_m10_packets
+python3 -m application_bot.main export-review-html --db /tmp/application_bot_m10.sqlite --out /tmp/application_bot_m10_review_html
+python3 -m application_bot.main export-review-csv --db /tmp/application_bot_m10.sqlite --out /tmp/application_bot_m10_review.csv
+python3 -m application_bot.main daily-report --db /tmp/application_bot_m10.sqlite --out /tmp/application_bot_m10_report
+python3 -m application_bot.main report --db /tmp/application_bot_m10.sqlite
 PATH="$PWD:$PATH" application-bot --help
 ```
 
@@ -44,9 +47,13 @@ alias. If your environment maps `python` to Python 3.11+, either spelling works.
 - Realistic senior, manager, sales, onsite, and Workday fixtures.
 - Source quality, review queue, and CSV exports.
 - Configurable packet thresholds.
+- Evidence approval, rejection, and imported decisions.
+- Pending/rejected/DO_NOT_USE exclusion from packet text.
+- Approval-pack export, packet refresh, and static HTML review.
+- Answer-bank safeguards for sensitive questions.
 
 ## Safe test cleanup
 
-Verification uses `/tmp/application_bot_m9.sqlite`,
-`/tmp/application_bot_m9_exports`, and `/tmp/application_bot_m9_report.*`.
+Verification uses `/tmp/application_bot_m10.sqlite`,
+`/tmp/application_bot_m10_exports`, and `/tmp/application_bot_m10_report.*`.
 Removing those test artifacts does not affect the repository or configured CRM.

@@ -64,6 +64,8 @@ database_path: data/application_bot.sqlite
 export_path: exports
 live_company_registry: config/live_company_registry.yaml
 resume_claim_inventory: config/resume_claim_inventory.yaml
+claim_evidence: config/claim_evidence.yaml
+application_answer_bank: config/application_answer_bank.yaml
 pipeline_limit: 25
 
 packet_thresholds:

@@ -149,6 +149,7 @@ class PolicyResult:
 @dataclass(slots=True)
 class ApplicationPacket:
     job_id: int
+    fit_summary: str
     tailored_summary: str
     tailored_skills: list[str]
     cover_email: str
@@ -164,6 +165,9 @@ class ApplicationPacket:
     claim_gaps: list[str] = field(default_factory=list)
     reason_codes: list[str] = field(default_factory=list)
     approved_claim_ids: list[str] = field(default_factory=list)
+    pending_claims_not_used: list[str] = field(default_factory=list)
+    safe_substitutions: list[str] = field(default_factory=list)
+    blocked_claims: list[str] = field(default_factory=list)
     created_at: str = field(default_factory=utc_now)
 
 

@@ -1,0 +1,276 @@
+claims:
+  - claim_id: identity_name
+    claim_text: Vadim Koenen
+    category: identity
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    evidence_source: user_context
+    evidence_detail: Name explicitly supplied in the Application Bot brief.
+    allowed_contexts: [packet_text, application_answer, contact]
+    prohibited_contexts: []
+    confidence: high
+    requires_user_approval: false
+    last_verified_at: "2026-06-20"
+
+  - claim_id: company_identity
+    claim_text: Koenen Revenue Systems (KRS)
+    category: company_identity
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    evidence_source: user_context
+    evidence_detail: Current business identity explicitly supplied by the user.
+    allowed_contexts: [packet_text, application_answer, current_role]
+    prohibited_contexts: [prior_employment]
+    confidence: high
+    requires_user_approval: false
+    last_verified_at: "2026-06-20"
+
+  - claim_id: website
+    claim_text: https://vadimkoenen.com/
+    category: identity
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    evidence_source: user_context
+    evidence_detail: Website explicitly supplied by the user.
+    allowed_contexts: [packet_text, application_answer, contact]
+    prohibited_contexts: []
+    confidence: high
+    requires_user_approval: false
+    last_verified_at: "2026-06-20"
+
+  - claim_id: linkedin
+    claim_text: https://linkedin.com/in/vadimkoenen
+    category: identity
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    evidence_source: user_context
+    evidence_detail: LinkedIn URL explicitly supplied by the user.
+    allowed_contexts: [packet_text, application_answer, contact]
+    prohibited_contexts: []
+    confidence: high
+    requires_user_approval: false
+    last_verified_at: "2026-06-20"
+
+  - claim_id: current_positioning
+    claim_text: Principal Consultant | Revenue Systems Architecture & AI-Enabled GTM
+    category: current_role
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    evidence_source: user_context
+    evidence_detail: Current positioning explicitly supplied for M10.
+    allowed_contexts: [packet_text, application_answer, current_role]
+    prohibited_contexts: [prior_employment]
+    confidence: high
+    requires_user_approval: false
+    last_verified_at: "2026-06-20"
+
+  - claim_id: target_functions
+    claim_text: Growth Marketing, Demand Generation, Revenue Systems, GTM Systems, GTM Strategy, Marketing Operations, Lifecycle and Performance Marketing, and AI-enabled GTM transformation
+    category: target_positioning
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    evidence_source: user_context
+    evidence_detail: Target functions explicitly supplied in project briefs.
+    allowed_contexts: [packet_text, desired_role, application_answer]
+    prohibited_contexts: [employment_achievement]
+    confidence: high
+    requires_user_approval: false
+    last_verified_at: "2026-06-20"
+
+  - claim_id: krs_positioning
+    claim_text: GTM systems architecture, revenue systems architecture, marketing operations, demand generation, AI-enabled GTM workflows, data quality management, first-party data strategy, CRM/ABM/intent-based segmentation, campaign operations, performance measurement, and strategic advisory for AI integration
+    category: target_positioning
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    evidence_source: user_context
+    evidence_detail: Approved KRS positioning themes explicitly supplied for M10.
+    allowed_contexts: [packet_text, application_answer, skills]
+    prohibited_contexts: [quantified_achievement]
+    confidence: high
+    requires_user_approval: false
+    last_verified_at: "2026-06-20"
+
+  - claim_id: approved_platform_keywords
+    claim_text: SQL, Python agents, OpenAI API, 6sense ABM, CRM, lifecycle marketing, segmentation, GTM analytics, and marketing operations
+    category: platform
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    evidence_source: user_context
+    evidence_detail: Approved only as skill and positioning keywords, not as employment claims.
+    allowed_contexts: [skills, packet_text]
+    prohibited_contexts: [employment_achievement, certification, quantified_achievement]
+    confidence: high
+    requires_user_approval: false
+    last_verified_at: "2026-06-20"
+
+  - claim_id: geography_preference
+    claim_text: Remote US preferred; Dallas, Plano, or DFW hybrid considered.
+    category: geography
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    evidence_source: user_context
+    evidence_detail: Location preference supplied in project briefs.
+    allowed_contexts: [application_answer, packet_text]
+    prohibited_contexts: []
+    confidence: high
+    requires_user_approval: false
+    last_verified_at: "2026-06-20"
+
+  - claim_id: years_of_experience
+    claim_text: Exact years of experience are pending user evidence.
+    category: tenure
+    approval_status: PENDING_USER_APPROVAL
+    evidence_source: none
+    evidence_detail: No exact tenure evidence is present in the repository.
+    allowed_contexts: [claim_gap, approval_pack]
+    prohibited_contexts: [packet_text, application_answer]
+    confidence: low
+    requires_user_approval: true
+    last_verified_at: null
+    safe_rewrite: Relevant approved positioning aligns with the role; exact tenure must be confirmed separately.
+    risk_level: high
+
+  - claim_id: quantified_achievements
+    claim_text: Exact revenue or performance impact metrics are pending user evidence.
+    category: metric
+    approval_status: PENDING_USER_APPROVAL
+    evidence_source: none
+    evidence_detail: No evidence-backed metrics are present.
+    allowed_contexts: [claim_gap, approval_pack]
+    prohibited_contexts: [packet_text, application_answer]
+    confidence: low
+    requires_user_approval: true
+    last_verified_at: null
+    safe_rewrite: Discuss the approved operating scope without asserting a numeric outcome.
+    risk_level: high
+
+  - claim_id: leadership_team_size
+    claim_text: Exact team size managed is pending user evidence.
+    category: leadership_scope
+    approval_status: PENDING_USER_APPROVAL
+    evidence_source: none
+    evidence_detail: Team-size evidence is not present.
+    allowed_contexts: [claim_gap, approval_pack]
+    prohibited_contexts: [packet_text, application_answer]
+    confidence: low
+    requires_user_approval: true
+    last_verified_at: null
+    safe_rewrite: Use systems and advisory positioning without stating team size.
+    risk_level: high
+
+  - claim_id: budget_ownership
+    claim_text: Exact budget ownership is pending user evidence.
+    category: leadership_scope
+    approval_status: PENDING_USER_APPROVAL
+    evidence_source: none
+    evidence_detail: Budget evidence is not present.
+    allowed_contexts: [claim_gap, approval_pack]
+    prohibited_contexts: [packet_text, application_answer]
+    confidence: low
+    requires_user_approval: true
+    last_verified_at: null
+    safe_rewrite: Describe approved campaign operations and performance measurement scope without a budget amount.
+    risk_level: high
+
+  - claim_id: employment_history
+    claim_text: Employer-by-employer titles and dates are pending verified resume evidence.
+    category: current_role
+    approval_status: PENDING_USER_APPROVAL
+    evidence_source: none
+    evidence_detail: Prior employment history is not verified in this repository.
+    allowed_contexts: [claim_gap, approval_pack]
+    prohibited_contexts: [packet_text, application_answer]
+    confidence: low
+    requires_user_approval: true
+    last_verified_at: null
+    safe_rewrite: Use the approved current business identity and positioning only.
+    risk_level: high
+
+  - claim_id: certifications
+    claim_text: Exact certification details are pending verified evidence.
+    category: certification
+    approval_status: PENDING_USER_APPROVAL
+    evidence_source: none
+    evidence_detail: Certification evidence is not present.
+    allowed_contexts: [claim_gap, approval_pack]
+    prohibited_contexts: [packet_text, application_answer]
+    confidence: low
+    requires_user_approval: true
+    last_verified_at: null
+    safe_rewrite: Omit certification language and emphasize approved positioning.
+    risk_level: high
+
+  - claim_id: degrees
+    claim_text: Degree details are pending verified evidence.
+    category: certification
+    approval_status: PENDING_USER_APPROVAL
+    evidence_source: none
+    evidence_detail: Degree evidence is not present.
+    allowed_contexts: [claim_gap, approval_pack]
+    prohibited_contexts: [packet_text, application_answer]
+    confidence: low
+    requires_user_approval: true
+    last_verified_at: null
+    safe_rewrite: Do not claim a degree; flag the requirement for user review.
+    risk_level: high
+
+  - claim_id: named_tool_proficiency
+    claim_text: Named-tool proficiency beyond approved skill keywords is pending evidence.
+    category: platform
+    approval_status: PENDING_USER_APPROVAL
+    evidence_source: none
+    evidence_detail: Vendor-specific proficiency must be verified separately.
+    allowed_contexts: [claim_gap, approval_pack]
+    prohibited_contexts: [packet_text, application_answer]
+    confidence: low
+    requires_user_approval: true
+    last_verified_at: null
+    safe_rewrite: Use only approved platform keywords as positioning, not as an employment or mastery claim.
+    risk_level: medium
+
+  - claim_id: compensation
+    claim_text: Compensation history and exact expectations are pending user approval.
+    category: compensation
+    approval_status: DO_NOT_USE
+    evidence_source: safety_policy
+    evidence_detail: No compensation range has been approved.
+    allowed_contexts: [claim_gap, approval_pack]
+    prohibited_contexts: [packet_text, application_answer]
+    confidence: high
+    requires_user_approval: true
+    last_verified_at: "2026-06-20"
+    safe_rewrite: REVIEW_REQUIRED — confirm expectations for the specific role.
+    risk_level: high
+
+  - claim_id: work_authorization
+    claim_text: Work authorization status is pending user approval.
+    category: work_authorization
+    approval_status: DO_NOT_USE
+    evidence_source: safety_policy
+    evidence_detail: Work authorization has not been supplied.
+    allowed_contexts: [claim_gap, approval_pack]
+    prohibited_contexts: [packet_text, application_answer]
+    confidence: high
+    requires_user_approval: true
+    last_verified_at: "2026-06-20"
+    safe_rewrite: PENDING_USER_APPROVAL — answer personally.
+    risk_level: critical
+
+  - claim_id: sponsorship
+    claim_text: Sponsorship requirement is pending user approval.
+    category: work_authorization
+    approval_status: DO_NOT_USE
+    evidence_source: safety_policy
+    evidence_detail: Sponsorship status has not been supplied.
+    allowed_contexts: [claim_gap, approval_pack]
+    prohibited_contexts: [packet_text, application_answer]
+    confidence: high
+    requires_user_approval: true
+    last_verified_at: "2026-06-20"
+    safe_rewrite: PENDING_USER_APPROVAL — answer personally.
+    risk_level: critical
+
+  - claim_id: legal_sensitive
+    claim_text: Legal and background-sensitive answers require personal review.
+    category: legal_sensitive
+    approval_status: DO_NOT_USE
+    evidence_source: safety_policy
+    evidence_detail: Legal-sensitive statements are outside autonomous packet authority.
+    allowed_contexts: [claim_gap, approval_pack]
+    prohibited_contexts: [packet_text, application_answer]
+    confidence: high
+    requires_user_approval: true
+    last_verified_at: "2026-06-20"
+    safe_rewrite: REVIEW_REQUIRED — answer personally and truthfully.
+    risk_level: critical

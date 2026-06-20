@@ -58,6 +58,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "export_path": "exports",
     "live_company_registry": "config/live_company_registry.yaml",
     "resume_claim_inventory": "config/resume_claim_inventory.yaml",
+    "claim_evidence": "config/claim_evidence.yaml",
+    "application_answer_bank": "config/application_answer_bank.yaml",
     "pipeline_limit": 25,
     "packet_thresholds": {
         "ready_min_score": 65,
@@ -141,3 +143,40 @@ def load_claim_inventory(path: str | Path) -> dict[str, Any]:
     if missing:
         raise ValueError(f"Claim inventory is missing fields: {', '.join(missing)}")
     return inventory
+
+
+def load_claim_evidence(path: str | Path) -> dict[str, Any]:
+    with Path(path).open("r", encoding="utf-8") as handle:
+        payload = yaml.safe_load(handle) or {}
+    claims = payload.get("claims")
+    if not isinstance(claims, list):
+        raise ValueError("Claim evidence must contain a claims list")
+    required = {
+        "claim_id",
+        "claim_text",
+        "category",
+        "approval_status",
+        "evidence_source",
+        "evidence_detail",
+        "allowed_contexts",
+        "prohibited_contexts",
+        "confidence",
+        "requires_user_approval",
+        "last_verified_at",
+    }
+    for claim in claims:
+        missing = sorted(required - set(claim))
+        if missing:
+            raise ValueError(
+                f"Claim {claim.get('claim_id', '<unknown>')} is missing: "
+                + ", ".join(missing)
+            )
+    return payload
+
+
+def load_answer_bank(path: str | Path) -> dict[str, Any]:
+    with Path(path).open("r", encoding="utf-8") as handle:
+        payload = yaml.safe_load(handle) or {}
+    if not isinstance(payload.get("answers"), dict):
+        raise ValueError("Application answer bank must contain an answers mapping")
+    return payload

@@ -4,6 +4,10 @@
 generation. A posting can influence which approved themes are emphasized, but
 it cannot create a new candidate claim.
 
+`config/claim_evidence.yaml` is the approval ledger. Each claim records its
+status, evidence source/detail, permitted contexts, confidence, approval
+requirement, and verification date.
+
 ## Approved content
 
 The inventory currently approves Vadim Koenen’s name, Koenen Revenue Systems /
@@ -29,3 +33,7 @@ claim-gap identifiers in a review packet.
 
 Never paste a job requirement into the inventory as if it were candidate
 experience.
+
+Approval statuses are `APPROVED`, `APPROVED_FROM_USER_CONTEXT`,
+`PENDING_USER_APPROVAL`, `REJECTED`, and `DO_NOT_USE`. Only the first two can
+be used, and only in explicitly allowed contexts.

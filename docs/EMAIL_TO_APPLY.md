@@ -16,6 +16,9 @@ python3 -m application_bot.main queue-email-applications \
 A queued job must have a recipient and a saved `PACKET_READY` packet. Review
 packets with unresolved claim gaps are not eligible for email queueing.
 
+`PACKET_READY` still does not authorize email. All live-send gates remain
+separate and disabled by default.
+
 `examples/email_jobs.example.json` contains a fake `example.com` recipient for
 safe local preview testing.
 

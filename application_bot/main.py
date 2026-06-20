@@ -16,7 +16,20 @@ from application_bot.adapters import (
     ManualJsonAdapter,
     ZipConnectorAdapter,
 )
-from application_bot.config import load_claim_inventory, load_config
+from application_bot.config import (
+    load_answer_bank,
+    load_claim_evidence,
+    load_claim_inventory,
+    load_config,
+)
+from application_bot.claims import (
+    claim_counts,
+    claim_gap_rows,
+    export_approval_pack,
+    import_claim_approvals,
+    list_claims,
+    update_claim_status,
+)
 from application_bot.confirmations import ImportedEmailConfirmationTracker
 from application_bot.database import Database
 from application_bot.email_service import (
@@ -29,11 +42,12 @@ from application_bot.packets import (
     generate_packet,
     packet_to_dict,
 )
-from application_bot.pipeline import run_dry_pipeline, scan_registry
+from application_bot.pipeline import refresh_packets, run_dry_pipeline, scan_registry
 from application_bot.policy import evaluate_job_submission_policy
 from application_bot.reporting import write_daily_report
 from application_bot.review import (
     export_review_csv,
+    export_review_html,
     export_review_queue,
     source_report,
 )
@@ -157,11 +171,13 @@ def command_export_packets(args: argparse.Namespace, config: dict[str, Any]) -> 
     database = _db(args, config)
     output_root = args.out or config["export_path"]
     inventory = load_claim_inventory(config["resume_claim_inventory"])
+    evidence = load_claim_evidence(config["claim_evidence"])
+    answer_bank = load_answer_bank(config["application_answer_bank"])
     exported: list[str] = []
     skipped: list[dict[str, Any]] = []
     for job in database.list_jobs(scored_only=True):
         policy = evaluate_job_submission_policy(job, config)
-        assessment = assess_packet(job, config, policy, inventory)
+        assessment = assess_packet(job, config, policy, inventory, evidence)
         database.save_packet_assessment(
             int(job.id),
             packet_status=str(assessment.status),
@@ -186,6 +202,8 @@ def command_export_packets(args: argparse.Namespace, config: dict[str, Any]) -> 
             config,
             policy,
             inventory=inventory,
+            evidence=evidence,
+            answer_bank=answer_bank,
             assessment=assessment,
         )
         category = (
@@ -279,7 +297,14 @@ def command_send_email_applications(
 
 def command_daily_report(args: argparse.Namespace, config: dict[str, Any]) -> int:
     database = _db(args, config)
-    _print(write_daily_report(database, args.out))
+    evidence = load_claim_evidence(config["claim_evidence"])
+    _print(
+        write_daily_report(
+            database,
+            args.out,
+            claim_readiness=claim_counts(evidence),
+        )
+    )
     return 0
 
 
@@ -334,6 +359,71 @@ def command_export_review_csv(
 ) -> int:
     database = _db(args, config)
     _print(export_review_csv(database, args.out))
+    return 0
+
+
+def command_claims(args: argparse.Namespace, config: dict[str, Any]) -> int:
+    evidence_path = config["claim_evidence"]
+    evidence = load_claim_evidence(evidence_path)
+    if args.claims_command == "list":
+        _print(list_claims(evidence))
+        return 0
+    if args.claims_command == "gaps":
+        database = _db(args, config)
+        gaps = claim_gap_rows(database, evidence)
+        _print({"claim_gaps_found": len(gaps), "gaps": gaps})
+        return 0
+    if args.claims_command == "export-approval-pack":
+        database = _db(args, config)
+        _print(export_approval_pack(database, evidence, args.out))
+        return 0
+    if args.claims_command == "approve":
+        claim = update_claim_status(
+            evidence_path,
+            args.claim_id,
+            "APPROVED_FROM_USER_CONTEXT",
+            source=args.source,
+            note=args.note,
+        )
+        _print({"updated": True, "claim": claim})
+        return 0
+    if args.claims_command == "reject":
+        claim = update_claim_status(
+            evidence_path,
+            args.claim_id,
+            "REJECTED",
+            source="user_rejection",
+            note=args.note,
+        )
+        _print({"updated": True, "claim": claim})
+        return 0
+    if args.claims_command == "import-approvals":
+        _print(import_claim_approvals(evidence_path, args.input))
+        return 0
+    raise ValueError(f"Unknown claims command: {args.claims_command}")
+
+
+def command_refresh_packets(
+    args: argparse.Namespace,
+    config: dict[str, Any],
+) -> int:
+    database = _db(args, config)
+    _print(
+        refresh_packets(
+            database=database,
+            output_root=args.out,
+            config=config,
+        )
+    )
+    return 0
+
+
+def command_export_review_html(
+    args: argparse.Namespace,
+    config: dict[str, Any],
+) -> int:
+    database = _db(args, config)
+    _print(export_review_html(database, args.out))
     return 0
 
 
@@ -468,6 +558,62 @@ def build_parser() -> argparse.ArgumentParser:
     review_csv.add_argument("--db")
     review_csv.add_argument("--out", required=True)
     review_csv.set_defaults(handler=command_export_review_csv)
+
+    claims_parser = subparsers.add_parser(
+        "claims",
+        help="Inspect and update the local claim evidence inventory",
+    )
+    claims_subparsers = claims_parser.add_subparsers(
+        dest="claims_command", required=True
+    )
+    claims_list = claims_subparsers.add_parser("list", help="List claim evidence")
+    claims_list.set_defaults(handler=command_claims)
+    claims_gaps = claims_subparsers.add_parser(
+        "gaps", help="List unresolved job claim gaps"
+    )
+    claims_gaps.add_argument("--db")
+    claims_gaps.set_defaults(handler=command_claims)
+    claims_pack = claims_subparsers.add_parser(
+        "export-approval-pack",
+        help="Export unresolved claim gaps as Markdown and JSON",
+    )
+    claims_pack.add_argument("--db")
+    claims_pack.add_argument("--out", required=True)
+    claims_pack.set_defaults(handler=command_claims)
+    claims_approve = claims_subparsers.add_parser(
+        "approve", help="Explicitly approve one claim with evidence"
+    )
+    claims_approve.add_argument("--claim-id", required=True)
+    claims_approve.add_argument("--source", required=True)
+    claims_approve.add_argument("--note", required=True)
+    claims_approve.set_defaults(handler=command_claims)
+    claims_reject = claims_subparsers.add_parser(
+        "reject", help="Reject one claim"
+    )
+    claims_reject.add_argument("--claim-id", required=True)
+    claims_reject.add_argument("--note", required=True)
+    claims_reject.set_defaults(handler=command_claims)
+    claims_import = claims_subparsers.add_parser(
+        "import-approvals", help="Import explicit claim decisions from JSON"
+    )
+    claims_import.add_argument("--input", required=True)
+    claims_import.set_defaults(handler=command_claims)
+
+    refresh = subparsers.add_parser(
+        "refresh-packets",
+        help="Re-evaluate stored jobs after claim evidence changes",
+    )
+    refresh.add_argument("--db")
+    refresh.add_argument("--out", required=True)
+    refresh.set_defaults(handler=command_refresh_packets)
+
+    review_html = subparsers.add_parser(
+        "export-review-html",
+        help="Export a filterable static HTML review queue",
+    )
+    review_html.add_argument("--db")
+    review_html.add_argument("--out", required=True)
+    review_html.set_defaults(handler=command_export_review_html)
     return parser
 
 

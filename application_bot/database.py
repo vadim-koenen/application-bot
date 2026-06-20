@@ -789,7 +789,13 @@ class Database:
                 """
                 SELECT id, company, title, score, verdict, submission_policy,
                        packet_status, claim_gaps_json, apply_url,
-                       recommended_next_action, packet_reason_codes_json
+                       recommended_next_action, packet_reason_codes_json,
+                       source,
+                       (
+                           SELECT export_path FROM application_packets p
+                           WHERE p.job_id = jobs.id
+                           ORDER BY p.id DESC LIMIT 1
+                       ) AS packet_path
                 FROM jobs
                 WHERE score IS NOT NULL
                 ORDER BY
@@ -809,6 +815,7 @@ class Database:
                 "job_id": int(row["id"]),
                 "company": row["company"],
                 "title": row["title"],
+                "source": row["source"],
                 "score": row["score"],
                 "verdict": row["verdict"],
                 "submission_policy": row["submission_policy"],
@@ -819,6 +826,7 @@ class Database:
                 "reason_codes": json.loads(
                     row["packet_reason_codes_json"] or "[]"
                 ),
+                "packet_path": row["packet_path"],
             }
             for row in rows
         ]

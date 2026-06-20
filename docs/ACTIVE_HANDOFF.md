@@ -2,13 +2,13 @@
 
 ## Repository state
 
-- Base branch: `feature/application-bot-m6-m8-ops`
-- Work branch: `feature/application-bot-m9-claim-source-review`
-- Base commit: `97db7eb`
+- Base branch: `feature/application-bot-m9-claim-source-review`
+- Work branch: `feature/application-bot-m10-claim-approval`
+- Base commit: `cc64238`
 - Core build commit: `4b6cff2` (`Build application bot core`)
 - Current feature-branch HEAD: run `git rev-parse --short HEAD`; the exact
   completion hash is also reported in the final build report.
-- Milestones: M1–M9 claim-safe operational dry-run complete
+- Milestones: M1–M10 evidence-backed packet readiness complete
 
 ## Completed
 
@@ -36,6 +36,11 @@
 - Explicit packet conversion outcomes and no-packet reason codes.
 - Measured source-quality reporting and expanded public ATS registry.
 - Markdown, JSON, and CSV review queue exports.
+- Structured claim evidence statuses and local approval/rejection/import commands.
+- Markdown/JSON approval packs with risk and safe-rewrite guidance.
+- Claim-safe reusable answer bank.
+- Packet refresh after evidence changes.
+- Filterable static HTML review dashboard.
 
 ## Commands run
 
@@ -43,13 +48,13 @@
 python3 -m pytest -q
 python3 -m compileall -q application_bot tests
 python3 -m application_bot.main --help
-python3 -m application_bot.main init-db --db /tmp/application_bot_m9.sqlite
-python3 -m application_bot.main run-dry-pipeline --registry config/live_company_registry.yaml --db /tmp/application_bot_m9.sqlite --out /tmp/application_bot_m9_exports --limit 50
-python3 -m application_bot.main source-report --db /tmp/application_bot_m9.sqlite
-python3 -m application_bot.main review-queue --db /tmp/application_bot_m9.sqlite --out /tmp/application_bot_m9_review
-python3 -m application_bot.main export-review-csv --db /tmp/application_bot_m9.sqlite --out /tmp/application_bot_m9_review.csv
-python3 -m application_bot.main daily-report --db /tmp/application_bot_m9.sqlite --out /tmp/application_bot_m9_report
-python3 -m application_bot.main report --db /tmp/application_bot_m9.sqlite
+python3 -m application_bot.main init-db --db /tmp/application_bot_m10.sqlite
+python3 -m application_bot.main run-dry-pipeline --registry config/live_company_registry.yaml --db /tmp/application_bot_m10.sqlite --out /tmp/application_bot_m10_exports --limit 50
+python3 -m application_bot.main claims list
+python3 -m application_bot.main claims gaps --db /tmp/application_bot_m10.sqlite
+python3 -m application_bot.main claims export-approval-pack --db /tmp/application_bot_m10.sqlite --out /tmp/application_bot_m10_claims
+python3 -m application_bot.main refresh-packets --db /tmp/application_bot_m10.sqlite --out /tmp/application_bot_m10_packets
+python3 -m application_bot.main export-review-html --db /tmp/application_bot_m10.sqlite --out /tmp/application_bot_m10_review_html
 PATH="$PWD:$PATH" application-bot --help
 ```
 
@@ -57,23 +62,26 @@ The verification shell has no `python` alias; `python3` is Python 3.14.5.
 
 ## Test result
 
-The latest pre-commit audit passed 72 offline tests. Exact pytest and CLI results are
+The latest pre-commit audit passed 81 offline tests. Exact pytest and CLI results are
 recorded in the completion report and should be regenerated with the commands
 in `docs/VERIFICATION.md` after any change.
 
 ## Known gaps
 
-- Exact employment history and metrics remain unapproved and are never inferred.
+- The measured default M10 scan produced zero `PACKET_READY` packets because
+  every otherwise suitable packet retained at least one unapproved claim gap.
+- Exact history, tenure, metrics, leadership scope, credentials, compensation,
+  and authorization remain unapproved and are never inferred.
 - No authenticated ATS submission adapter is enabled.
 - Gmail parsing works for imported JSON fixtures; no real Gmail API connector is configured.
 - The scheduler command runs one dry cycle but no launchctl/cron job is installed.
 - The live company registry requires operator review before sources are enabled.
-- No review UI is included.
+- The review UI is static HTML only; no interactive application actions exist.
 
 ## Next recommended task
 
-Add user-approved evidence-backed employment history and metrics, then tune
-source selection from packet-conversion data.
+Review the exported approval pack and add evidence-backed claim decisions,
+then refresh packets to convert appropriate jobs to `PACKET_READY`.
 
 ## Exact no-go boundaries
 

@@ -49,8 +49,19 @@ approved_skill_keywords:
   - CRM
   - ABM
   - intent-based segmentation
+  - SQL
+  - Python agents
+  - OpenAI API
+  - 6sense ABM
+  - first-party data strategy
+  - GTM analytics
+  - strategic advisory for AI integration
 
 approved_tools_platforms:
+  - SQL
+  - Python agents
+  - OpenAI API
+  - 6sense ABM
   - CRM systems
   - ABM platforms
   - intent data platforms
@@ -88,6 +99,14 @@ prohibited_or_unverified_claims:
     description: Revenue, pipeline, growth, conversion, or cost metrics require approval.
     patterns:
       - "\\b(increased|grew|generated|delivered|reduced|improved)\\b.{0,40}\\b\\d+(?:\\.\\d+)?%?\\b"
+  - id: leadership_team_size
+    description: Exact team size requires user evidence.
+    patterns:
+      - "\\b(team of|managed|led)\\s+\\d+\\b"
+  - id: budget_ownership
+    description: Exact budget ownership requires user evidence.
+    patterns:
+      - "\\$\\s?\\d+(?:\\.\\d+)?\\s?(?:m|mm|million|k|thousand)?\\s+(?:budget|spend)"
   - id: work_authorization
     description: Work authorization and sponsorship answers require user confirmation.
     patterns:

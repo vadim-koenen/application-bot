@@ -47,6 +47,23 @@ python3 -m application_bot.main review-queue --db data/application_bot.sqlite --
 python3 -m application_bot.main export-review-csv --db data/application_bot.sqlite --out exports/review.csv
 ```
 
+Evidence approval and refresh:
+
+```bash
+python3 -m application_bot.main claims export-approval-pack \
+  --db data/application_bot.sqlite \
+  --out exports/claim-approval
+python3 -m application_bot.main claims approve \
+  --claim-id CLAIM_ID \
+  --source verified_resume \
+  --note "Exact evidence reviewed by Vadim"
+python3 -m application_bot.main refresh-packets \
+  --db data/application_bot.sqlite \
+  --out exports/refreshed-packets
+```
+
+Approval changes only local claim evidence. It does not submit an application.
+
 ## Offline and partial runs
 
 Disabling every company produces `real_network_scan=false` and

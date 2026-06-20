@@ -13,10 +13,12 @@ def build_daily_report(
     *,
     day: str | None = None,
     pipeline: dict[str, Any] | None = None,
+    claim_readiness: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     report = database.daily_metrics(day or utc_now()[:10])
     report["pipeline"] = pipeline or {}
     report["source_quality"] = database.source_quality_report()
+    report["claim_readiness"] = claim_readiness or {}
     actions: list[str] = []
     if report["verdicts"]["APPLY_PRIORITY"]:
         actions.append("Review APPLY_PRIORITY packets first.")
@@ -45,6 +47,7 @@ def render_daily_report_markdown(report: dict[str, Any]) -> str:
     )
     pipeline = report.get("pipeline") or {}
     quality = report.get("source_quality") or {}
+    claim_readiness = report.get("claim_readiness") or {}
     attempted = int(quality.get("sources_attempted") or 0)
     succeeded = int(quality.get("sources_succeeded") or 0)
     inferred_status = (
@@ -81,6 +84,10 @@ def render_daily_report_markdown(report: dict[str, Any]) -> str:
 ## Packet Conversion
 
 - No-packet reason counts: {json.dumps(quality.get('no_packet_reason_counts', {}), sort_keys=True)}
+- Claims approved: {claim_readiness.get('APPROVED', 0) + claim_readiness.get('APPROVED_FROM_USER_CONTEXT', 0)}
+- Claims pending: {claim_readiness.get('PENDING_USER_APPROVAL', 0)}
+- Claims rejected: {claim_readiness.get('REJECTED', 0)}
+- Claims do not use: {claim_readiness.get('DO_NOT_USE', 0)}
 
 ## Network Scan
 
@@ -105,9 +112,15 @@ def write_daily_report(
     *,
     day: str | None = None,
     pipeline: dict[str, Any] | None = None,
+    claim_readiness: dict[str, int] | None = None,
     directory_mode: bool = False,
 ) -> dict[str, Any]:
-    report = build_daily_report(database, day=day, pipeline=pipeline)
+    report = build_daily_report(
+        database,
+        day=day,
+        pipeline=pipeline,
+        claim_readiness=claim_readiness,
+    )
     target = Path(output)
     if directory_mode or target.is_dir():
         base = target / f"daily-report-{report['date']}"

@@ -1,0 +1,61 @@
+answers:
+  website:
+    status: APPROVED
+    claim_id: website
+    value: https://vadimkoenen.com/
+  linkedin:
+    status: APPROVED
+    claim_id: linkedin
+    value: https://linkedin.com/in/vadimkoenen
+  current_company:
+    status: APPROVED
+    claim_id: company_identity
+    value: Koenen Revenue Systems (KRS)
+  current_positioning:
+    status: APPROVED
+    claim_id: current_positioning
+    value: Principal Consultant | Revenue Systems Architecture & AI-Enabled GTM
+  desired_role_type:
+    status: APPROVED
+    claim_id: target_functions
+    value: Director, Senior Director, VP, Head, or executive roles across growth marketing, demand generation, revenue systems, GTM systems, GTM strategy, and marketing operations.
+  location_preference:
+    status: APPROVED
+    claim_id: geography_preference
+    value: Remote US preferred; Dallas, Plano, or DFW hybrid considered.
+  salary_expectations:
+    status: REVIEW_REQUIRED
+    claim_id: compensation
+    value: REVIEW_REQUIRED — confirm against the specific role range.
+  work_authorization:
+    status: PENDING_USER_APPROVAL
+    claim_id: work_authorization
+    value: PENDING_USER_APPROVAL — answer personally.
+  sponsorship:
+    status: PENDING_USER_APPROVAL
+    claim_id: sponsorship
+    value: PENDING_USER_APPROVAL — answer personally.
+  background_check:
+    status: REVIEW_REQUIRED
+    claim_id: legal_sensitive
+    value: REVIEW_REQUIRED — answer personally and truthfully.
+  legal_sensitive:
+    status: REVIEW_REQUIRED
+    claim_id: legal_sensitive
+    value: REVIEW_REQUIRED — answer personally and truthfully.
+  unknown_required_question:
+    status: REVIEW_REQUIRED
+    claim_id: legal_sensitive
+    value: REVIEW_REQUIRED — no safe reusable answer is approved.
+  cover_email_base:
+    status: APPROVED
+    claim_id: current_positioning
+    value: I am interested in this opportunity and would welcome a conversation to assess mutual fit and the role's priorities.
+  why_interested:
+    status: APPROVED
+    claim_id: target_functions
+    value: The role aligns with approved positioning across growth, demand generation, revenue systems, GTM systems, and marketing operations.
+  why_fit:
+    status: APPROVED
+    claim_id: krs_positioning
+    value: Relevant approved positioning includes GTM systems architecture, revenue systems architecture, marketing operations, demand generation, AI-enabled GTM workflows, data quality management, segmentation, campaign operations, and performance measurement.

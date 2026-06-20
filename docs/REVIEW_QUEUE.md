@@ -22,3 +22,11 @@ python3 -m application_bot.main export-review-csv --db data/application_bot.sqli
 Review ready packets first, then claim-gap packets. A review packet is not
 permission to answer an unsupported question. No-packet rows remain visible so
 source selection and thresholds can be tuned from evidence.
+
+Generate a filterable static dashboard with:
+
+```bash
+python3 -m application_bot.main export-review-html \
+  --db data/application_bot.sqlite \
+  --out exports/review.html
+```
