@@ -33,11 +33,20 @@ def claim_is_approved(
     evidence: dict[str, Any],
     *,
     context: str = "packet_text",
+    corpus: str | None = None,
 ) -> bool:
     claim = evidence_claim_map(evidence).get(claim_id)
     if not claim or claim.get("approval_status") not in APPROVED_STATUSES:
         return False
-    return context in set(claim.get("allowed_contexts") or [])
+    if context not in set(claim.get("allowed_contexts") or []):
+        return False
+    approval_patterns = claim.get("approval_match_patterns") or []
+    if corpus is not None and approval_patterns:
+        return any(
+            re.search(str(pattern), corpus, flags=re.IGNORECASE | re.DOTALL)
+            for pattern in approval_patterns
+        )
+    return True
 
 
 def approved_evidence_claims(
@@ -56,11 +65,18 @@ def approved_evidence_claims(
 def unresolved_claim_gaps(
     gap_ids: list[str],
     evidence: dict[str, Any],
+    *,
+    corpus: str | None = None,
 ) -> list[str]:
     return sorted(
         gap_id
         for gap_id in set(gap_ids)
-        if not claim_is_approved(gap_id, evidence, context="packet_text")
+        if not claim_is_approved(
+            gap_id,
+            evidence,
+            context="packet_text",
+            corpus=corpus,
+        )
     )
 
 
@@ -198,6 +214,10 @@ def claim_gap_rows(
     for job in database.review_queue_rows():
         for claim_id in job["claim_gaps"]:
             claim = claims.get(claim_id, {})
+            approval_status = claim.get(
+                "approval_status", "PENDING_USER_APPROVAL"
+            )
+            scope_mismatch = approval_status in APPROVED_STATUSES
             gaps.append(
                 {
                     "gap_id": f"{job['job_id']}:{claim_id}",
@@ -217,11 +237,16 @@ def claim_gap_rows(
                         "Use approved positioning and retain this requirement for review.",
                     ),
                     "risk_level": claim.get("risk_level", "medium"),
-                    "approval_status": claim.get(
-                        "approval_status", "PENDING_USER_APPROVAL"
+                    "approval_status": (
+                        "APPROVED_SCOPE_MISMATCH"
+                        if scope_mismatch
+                        else approval_status
                     ),
                     "recommended_action": (
-                        "Provide evidence and explicitly approve, reject, or keep pending."
+                        "The posting requirement falls outside the exact approved "
+                        "scope; keep it in review or provide matching evidence."
+                        if scope_mismatch
+                        else "Provide evidence and explicitly approve, reject, or keep pending."
                     ),
                 }
             )
@@ -277,6 +302,10 @@ def update_claim_status(
     *,
     source: str,
     note: str,
+    claim_text: str | None = None,
+    approval_match_patterns: list[str] | None = None,
+    confidence: str | None = None,
+    requires_user_approval: bool | None = None,
 ) -> dict[str, Any]:
     if status not in VALID_STATUSES:
         raise ValueError(f"Invalid claim approval status: {status}")
@@ -301,6 +330,16 @@ def update_claim_status(
     claim["evidence_source"] = source.strip()
     claim["evidence_detail"] = note.strip()
     claim["last_verified_at"] = datetime.now(UTC).date().isoformat()
+    if claim_text is not None and claim_text.strip():
+        claim["claim_text"] = claim_text.strip()
+    if approval_match_patterns is not None:
+        claim["approval_match_patterns"] = [
+            str(pattern) for pattern in approval_match_patterns
+        ]
+    if confidence is not None:
+        claim["confidence"] = confidence
+    if requires_user_approval is not None:
+        claim["requires_user_approval"] = requires_user_approval
     if status in APPROVED_STATUSES:
         allowed = set(claim.get("allowed_contexts") or [])
         allowed.update({"packet_text", "application_answer"})
@@ -320,7 +359,7 @@ def import_claim_approvals(
     input_path: str | Path,
 ) -> dict[str, Any]:
     with Path(input_path).open("r", encoding="utf-8") as handle:
-        incoming = json.load(handle)
+        incoming = yaml.safe_load(handle)
     approvals = incoming.get("approvals", []) if isinstance(incoming, dict) else incoming
     updated: list[str] = []
     for approval in approvals:
@@ -330,6 +369,26 @@ def import_claim_approvals(
             str(approval["approval_status"]),
             source=str(approval.get("source") or "imported_approval"),
             note=str(approval.get("note") or approval.get("evidence_detail") or ""),
+            claim_text=(
+                str(approval["claim_text"])
+                if approval.get("claim_text") is not None
+                else None
+            ),
+            approval_match_patterns=(
+                [str(pattern) for pattern in approval["approval_match_patterns"]]
+                if approval.get("approval_match_patterns") is not None
+                else None
+            ),
+            confidence=(
+                str(approval["confidence"])
+                if approval.get("confidence") is not None
+                else None
+            ),
+            requires_user_approval=(
+                bool(approval["requires_user_approval"])
+                if approval.get("requires_user_approval") is not None
+                else None
+            ),
         )
         updated.append(str(approval["claim_id"]))
     return {"updated": len(updated), "claim_ids": updated}

@@ -1,0 +1,85 @@
+approvals:
+  - claim_id: quantified_achievements
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    source: user_authorized_evidence_2026-06-20
+    claim_text: Reduced campaign time-to-market by 35%; activated $51M in pipeline; and traced $3.4M in closed-won revenue.
+    note: Only these three exact metrics are approved. No other revenue, pipeline, growth, conversion, or cost metric is authorized.
+    approval_match_patterns:
+      - '35%'
+      - '\$51M\b'
+      - '\$3\.4M\b'
+    confidence: high
+    requires_user_approval: false
+
+  - claim_id: leadership_team_size
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    source: user_authorized_evidence_2026-06-20
+    claim_text: Led a six-person team.
+    note: Approval is limited to a six-person team and does not authorize any broader management-scope claim.
+    approval_match_patterns:
+      - '\b(?:team of 6|six-person team)\b'
+    confidence: high
+    requires_user_approval: false
+
+  - claim_id: employment_history
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    source: user_authorized_evidence_2026-06-20
+    claim_text: Marketing Automation & Data Manager at Teladoc Health from October 2015 through June 2019; Senior Specialist, Digital Data & Analytics at Ryan from July 2019 through February 2020.
+    note: Only the two listed employers, titles, and date ranges are approved. No other prior employment details are authorized by this import.
+    approval_match_patterns:
+      - '\bTeladoc Health\b'
+      - '\bRyan\b'
+    confidence: high
+    requires_user_approval: false
+
+  - claim_id: certifications
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    source: user_authorized_evidence_2026-06-20
+    claim_text: 2x Marketo Certified Expert; 6sense Next-Gen Admin; HubSpot Certified.
+    note: Approval is limited to the three certification statements listed in claim_text.
+    approval_match_patterns:
+      - '\bMarketo\b.{0,40}\b(?:certified|certification)\b'
+      - '\b6sense\b.{0,40}\b(?:certified|certification|admin)\b'
+      - '\bHubSpot\b.{0,40}\b(?:certified|certification)\b'
+    confidence: high
+    requires_user_approval: false
+
+  - claim_id: degrees
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    source: user_authorized_evidence_2026-06-20
+    claim_text: MBA, Maryville University; B.A. in International Studies, Southern Methodist University.
+    note: Approval is limited to these two degrees and institutions.
+    approval_match_patterns:
+      - '\b(?:bachelor|bachelor''s|bachelor’s|B\.?A\.?)\b'
+      - '\b(?:MBA|master|master''s|master’s|advanced degree)\b'
+    confidence: high
+    requires_user_approval: false
+
+  - claim_id: named_tool_proficiency
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    source: user_authorized_evidence_2026-06-20
+    claim_text: Proficient with Marketo, Salesforce CRM/SFDC, HubSpot, Microsoft Dynamics, Workato, 6sense, Salesloft, Google Analytics 4, tag management, Python, OpenAI API, Claude API, CRM integration logic, ABM, lifecycle workflows, segmentation, attribution, campaign QA, data hygiene, and GTM analytics.
+    note: Approval is limited to the named tools and capabilities in claim_text and does not imply unlisted certifications, employers, or quantified outcomes.
+    approval_match_patterns:
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bMarketo\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\b(?:Salesforce|SFDC)\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bHubSpot\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bMicrosoft Dynamics\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bWorkato\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\b6sense\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bSalesloft\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\b(?:Google Analytics 4|GA4)\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\btag management\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bPython\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bOpenAI API\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bClaude API\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bCRM integration\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bABM\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\blifecycle workflows?\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bsegmentation\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\battribution\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bcampaign QA\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bdata hygiene\b'
+      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bGTM analytics\b'
+    confidence: high
+    requires_user_approval: false

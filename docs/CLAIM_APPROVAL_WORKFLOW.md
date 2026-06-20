@@ -29,7 +29,12 @@ application-bot claims reject \
 
 Approval requires a source and evidence note. High-risk claims are never
 auto-approved. Decisions update only the local evidence YAML. Bulk decisions
-can be imported from JSON with `claims import-approvals`.
+can be imported from YAML or JSON with `claims import-approvals`.
+
+An approval can include exact `claim_text` and `approval_match_patterns`.
+Match patterns limit readiness conversion to posting requirements supported by
+that exact evidence; an approved category does not become blanket permission
+for unrelated credentials, platforms, metrics, or employment claims.
 
 Refresh after evidence changes:
 

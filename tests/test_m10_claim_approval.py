@@ -200,20 +200,16 @@ def test_explicit_approval_converts_packet_to_ready(tmp_path):
 
 def test_import_approvals_updates_local_inventory(tmp_path):
     config = temp_config(tmp_path)
-    approval_file = tmp_path / "approvals.json"
+    approval_file = tmp_path / "approvals.yaml"
     approval_file.write_text(
-        json.dumps(
-            {
-                "approvals": [
-                    {
-                        "claim_id": "years_of_experience",
-                        "approval_status": "APPROVED_FROM_USER_CONTEXT",
-                        "source": "user_resume_review",
-                        "note": "Explicit evidence review completed.",
-                    }
-                ]
-            }
-        ),
+        """
+approvals:
+  - claim_id: years_of_experience
+    claim_text: 10+ years of relevant experience.
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    source: user_resume_review
+    note: Explicit evidence review completed.
+""".lstrip(),
         encoding="utf-8",
     )
     result = import_claim_approvals(config["claim_evidence"], approval_file)
@@ -223,7 +219,44 @@ def test_import_approvals_updates_local_inventory(tmp_path):
         claim for claim in evidence["claims"] if claim["claim_id"] == "years_of_experience"
     )
     assert claim["approval_status"] == "APPROVED_FROM_USER_CONTEXT"
+    assert claim["claim_text"] == "10+ years of relevant experience."
     assert "packet_text" in claim["allowed_contexts"]
+
+
+def test_approved_claim_scope_does_not_clear_unrelated_requirement(tmp_path):
+    config = temp_config(tmp_path)
+    approval_file = tmp_path / "approvals.yaml"
+    approval_file.write_text(
+        """
+approvals:
+  - claim_id: named_tool_proficiency
+    claim_text: Proficient with Marketo and Salesforce.
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    source: user_evidence
+    note: Only Marketo and Salesforce are approved.
+    approval_match_patterns:
+      - '\\bMarketo\\b'
+      - '\\bSalesforce\\b'
+""".lstrip(),
+        encoding="utf-8",
+    )
+    import_claim_approvals(config["claim_evidence"], approval_file)
+    evidence = load_claim_evidence(config["claim_evidence"])
+    inventory = load_claim_inventory(config["resume_claim_inventory"])
+    job = approval_job()
+    job.requirements = "Deep expertise in enterprise activation metrics."
+    score = score_job(job, config)
+    job.score = score.score
+    job.verdict = str(score.verdict)
+    job.score_details_json = json.dumps({"dimensions": score.dimensions})
+    assessment = assess_packet(
+        job,
+        config,
+        evaluate_job_submission_policy(job, config),
+        inventory,
+        evidence,
+    )
+    assert "named_tool_proficiency" in assessment.claim_gaps
 
 
 def test_answer_bank_loads_with_sensitive_review_rules():

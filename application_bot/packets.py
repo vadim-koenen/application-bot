@@ -60,7 +60,20 @@ def assess_packet(
     )
     generic_sales_title = "sales" in job.title.lower() and not title_function_match
     detected_gaps = detect_claim_gaps(job, inventory)
-    claim_gaps = unresolved_claim_gaps(detected_gaps, evidence)
+    claim_corpus = " ".join(
+        (
+            job.title,
+            job.department,
+            job.description,
+            job.requirements,
+            job.responsibilities,
+        )
+    )
+    claim_gaps = unresolved_claim_gaps(
+        detected_gaps,
+        evidence,
+        corpus=claim_corpus,
+    )
 
     if str(policy.decision) == "BLOCKED" or str(job.verdict) == "BLOCKED":
         return PacketAssessment(

@@ -116,7 +116,7 @@ def test_unverified_requirements_become_claim_gaps():
         inventory,
     )
     assert assessment.status == PacketStatus.REVIEW_PACKET_CLAIM_GAPS
-    assert assessment.claim_gaps == ["degrees", "years_of_experience"]
+    assert assessment.claim_gaps == ["years_of_experience"]
     assert assessment.should_export is True
 
 

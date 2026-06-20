@@ -2,13 +2,13 @@
 
 ## Repository state
 
-- Base branch: `feature/application-bot-m9-claim-source-review`
-- Work branch: `feature/application-bot-m10-claim-approval`
-- Base commit: `cc64238`
+- Base branch: `feature/application-bot-m10-claim-approval`
+- Work branch: `feature/application-bot-m11-evidence-approval`
+- Base commit: `386f9c0`
 - Core build commit: `4b6cff2` (`Build application bot core`)
 - Current feature-branch HEAD: run `git rev-parse --short HEAD`; the exact
   completion hash is also reported in the final build report.
-- Milestones: M1–M10 evidence-backed packet readiness complete
+- Milestones: M1–M10 complete; M11 evidence-approval activation measured
 
 ## Completed
 
@@ -41,6 +41,10 @@
 - Claim-safe reusable answer bank.
 - Packet refresh after evidence changes.
 - Filterable static HTML review dashboard.
+- Exact evidence approvals for metrics, six-person leadership scope, two prior
+  roles, approved certifications, approved degrees, and named tools.
+- Scope-matched approval resolution so unrelated requirements remain review
+  gaps even when a claim category contains some approved evidence.
 
 ## Commands run
 
@@ -62,7 +66,7 @@ The verification shell has no `python` alias; `python3` is Python 3.14.5.
 
 ## Test result
 
-The latest pre-commit audit passed 81 offline tests. Exact pytest and CLI results are
+The latest pre-commit audit passed 82 offline tests. Exact pytest and CLI results are
 recorded in the completion report and should be regenerated with the commands
 in `docs/VERIFICATION.md` after any change.
 
@@ -70,8 +74,13 @@ in `docs/VERIFICATION.md` after any change.
 
 - The measured default M10 scan produced zero `PACKET_READY` packets because
   every otherwise suitable packet retained at least one unapproved claim gap.
-- Exact history, tenure, metrics, leadership scope, credentials, compensation,
-  and authorization remain unapproved and are never inferred.
+- The M11 activation pass also produced zero `PACKET_READY` packets: degree
+  evidence cleared three matching gap occurrences, while exact tenure remained
+  unresolved on all three `GOOD_FIT` jobs.
+- Exact tenure and budget ownership remain pending. Compensation, work
+  authorization, sponsorship, and legal-sensitive answers remain `DO_NOT_USE`.
+  Evidence outside the explicitly approved history, metrics, leadership,
+  credentials, and tool scope is never inferred.
 - No authenticated ATS submission adapter is enabled.
 - Gmail parsing works for imported JSON fixtures; no real Gmail API connector is configured.
 - The scheduler command runs one dry cycle but no launchctl/cron job is installed.
