@@ -21,7 +21,7 @@ from application_bot.config import (
     load_claim_inventory,
 )
 from application_bot.database import Database
-from application_bot.models import Job
+from application_bot.models import Job, PacketStatus
 from application_bot.packets import assess_packet, generate_packet
 from application_bot.pipeline import refresh_packets
 from application_bot.policy import evaluate_job_submission_policy
@@ -190,6 +190,7 @@ def test_explicit_approval_converts_packet_to_ready(tmp_path):
         "APPROVED_FROM_USER_CONTEXT",
         source="user_resume_review",
         note="Vadim explicitly confirmed the role's tenure requirement is supported.",
+        approval_match_patterns=[],
     )
     after = refresh_packets(
         database=database, output_root=tmp_path / "after", config=config
@@ -257,6 +258,81 @@ approvals:
         evidence,
     )
     assert "named_tool_proficiency" in assessment.claim_gaps
+
+
+def test_date_backed_tenure_only_clears_compatible_requirement(tmp_path):
+    config = temp_config(tmp_path)
+    approval_file = tmp_path / "tenure-approvals.yaml"
+    approval_file.write_text(
+        """
+approvals:
+  - claim_id: years_of_experience
+    claim_text: 4+ years of date-backed marketing automation experience.
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    source: user_resume_context
+    note: Limited to four years in marketing automation contexts.
+    approval_match_patterns:
+      - '\\b[1-4]\\+?\\s+years?\\b.{0,80}\\bmarketing automation\\b'
+      - '\\b(?:Salesforce|SFDC).{0,40}(?:CRM|integration|sync)\\b.{0,80}\\b[1-4]\\+?\\s+years?\\b'
+""".lstrip(),
+        encoding="utf-8",
+    )
+    import_claim_approvals(config["claim_evidence"], approval_file)
+    evidence = load_claim_evidence(config["claim_evidence"])
+    inventory = load_claim_inventory(config["resume_claim_inventory"])
+
+    compatible = approval_job()
+    compatible.requirements = "4+ years of marketing automation experience."
+    compatible_score = score_job(compatible, config)
+    compatible.score = compatible_score.score
+    compatible.verdict = str(compatible_score.verdict)
+    compatible.score_details_json = json.dumps(
+        {"dimensions": compatible_score.dimensions}
+    )
+    compatible_assessment = assess_packet(
+        compatible,
+        config,
+        evaluate_job_submission_policy(compatible, config),
+        inventory,
+        evidence,
+    )
+    assert compatible_assessment.status == PacketStatus.PACKET_READY
+
+    incompatible = approval_job()
+    incompatible.requirements = "10+ years of marketing automation experience."
+    incompatible_score = score_job(incompatible, config)
+    incompatible.score = incompatible_score.score
+    incompatible.verdict = str(incompatible_score.verdict)
+    incompatible.score_details_json = json.dumps(
+        {"dimensions": incompatible_score.dimensions}
+    )
+    incompatible_assessment = assess_packet(
+        incompatible,
+        config,
+        evaluate_job_submission_policy(incompatible, config),
+        inventory,
+        evidence,
+    )
+    assert incompatible_assessment.status == PacketStatus.REVIEW_PACKET_CLAIM_GAPS
+    assert incompatible_assessment.claim_gaps == ["years_of_experience"]
+
+    unrelated = approval_job()
+    unrelated.description = "Uses Salesforce for sales activity."
+    unrelated.requirements = "4+ years of quota-carrying SaaS sales experience."
+    unrelated_score = score_job(unrelated, config)
+    unrelated.score = unrelated_score.score
+    unrelated.verdict = str(unrelated_score.verdict)
+    unrelated.score_details_json = json.dumps(
+        {"dimensions": unrelated_score.dimensions}
+    )
+    unrelated_assessment = assess_packet(
+        unrelated,
+        config,
+        evaluate_job_submission_policy(unrelated, config),
+        inventory,
+        evidence,
+    )
+    assert "years_of_experience" in unrelated_assessment.claim_gaps
 
 
 def test_answer_bank_loads_with_sensitive_review_rules():

@@ -2,13 +2,13 @@
 
 ## Repository state
 
-- Base branch: `feature/application-bot-m10-claim-approval`
-- Work branch: `feature/application-bot-m11-evidence-approval`
-- Base commit: `386f9c0`
+- Base branch: `feature/application-bot-m11-evidence-approval`
+- Work branch: `feature/application-bot-m12-tenure-activation`
+- Base commit: `fe4ea2b`
 - Core build commit: `4b6cff2` (`Build application bot core`)
 - Current feature-branch HEAD: run `git rev-parse --short HEAD`; the exact
   completion hash is also reported in the final build report.
-- Milestones: M1–M10 complete; M11 evidence-approval activation measured
+- Milestones: M1–M10 complete; M11 and M12 evidence activations measured
 
 ## Completed
 
@@ -45,6 +45,9 @@
   roles, approved certifications, approved degrees, and named tools.
 - Scope-matched approval resolution so unrelated requirements remain review
   gaps even when a claim category contains some approved evidence.
+- Date-backed tenure approval limited to October 2015 through February 2020:
+  4+ years across approved marketing-automation, data, analytics, and
+  revenue/marketing-systems contexts.
 
 ## Commands run
 
@@ -66,7 +69,7 @@ The verification shell has no `python` alias; `python3` is Python 3.14.5.
 
 ## Test result
 
-The latest pre-commit audit passed 82 offline tests. Exact pytest and CLI results are
+The latest pre-commit audit passed 83 offline tests. Exact pytest and CLI results are
 recorded in the completion report and should be regenerated with the commands
 in `docs/VERIFICATION.md` after any change.
 
@@ -77,8 +80,13 @@ in `docs/VERIFICATION.md` after any change.
 - The M11 activation pass also produced zero `PACKET_READY` packets: degree
   evidence cleared three matching gap occurrences, while exact tenure remained
   unresolved on all three `GOOD_FIT` jobs.
-- Exact tenure and budget ownership remain pending. Compensation, work
-  authorization, sponsorship, and legal-sensitive answers remain `DO_NOT_USE`.
+- The M12 activation approved 4+ years of date-backed tenure but produced zero
+  `PACKET_READY` packets. The three `GOOD_FIT` jobs require 8–10+ years in
+  business-systems, performance-marketing, or product-leadership contexts.
+- Budget ownership remains pending. Approved tenure is limited to the exact
+  date-backed 4+ year scope; higher, full-career, KRS, executive, and unrelated
+  functional tenure remain scope mismatches. Compensation, work authorization,
+  sponsorship, and legal-sensitive answers remain `DO_NOT_USE`.
   Evidence outside the explicitly approved history, metrics, leadership,
   credentials, and tool scope is never inferred.
 - No authenticated ATS submission adapter is enabled.

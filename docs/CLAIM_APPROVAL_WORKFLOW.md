@@ -36,6 +36,10 @@ Match patterns limit readiness conversion to posting requirements supported by
 that exact evidence; an approved category does not become blanket permission
 for unrelated credentials, platforms, metrics, or employment claims.
 
+Tenure approvals follow the same rule. A date-backed four-year claim can clear
+only compatible requirements in its approved functions; it cannot satisfy an
+8-, 10-, or 15-year requirement or tenure in an unrelated function.
+
 Refresh after evidence changes:
 
 ```bash

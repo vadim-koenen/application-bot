@@ -138,23 +138,38 @@ claims:
   requires_user_approval: false
   last_verified_at: '2026-06-20'
 - claim_id: years_of_experience
-  claim_text: Exact years of experience are pending user evidence.
+  claim_text: 4+ years of date-backed experience across marketing automation, digital
+    data, analytics, and revenue/marketing systems roles; including 3+ years as Marketing
+    Automation & Data Manager at Teladoc Health.
   category: tenure
-  approval_status: PENDING_USER_APPROVAL
-  evidence_source: none
-  evidence_detail: No exact tenure evidence is present in the repository.
+  approval_status: APPROVED_FROM_USER_CONTEXT
+  evidence_source: user_provided_resume_context_2026-06-20
+  evidence_detail: Date-backed scope is limited to Teladoc Health from October 2015
+    through June 2019 and Ryan from July 2019 through February 2020, approximately
+    4 years 4 months combined. This does not authorize 10+ years, 15+ years, full-career
+    tenure, KRS tenure, executive tenure, or unrelated functional tenure.
   allowed_contexts:
-  - claim_gap
-  - approval_pack
-  prohibited_contexts:
-  - packet_text
   - application_answer
-  confidence: low
-  requires_user_approval: true
-  last_verified_at: null
+  - approval_pack
+  - claim_gap
+  - packet_text
+  prohibited_contexts: []
+  confidence: high
+  requires_user_approval: false
+  last_verified_at: '2026-06-20'
   safe_rewrite: Relevant approved positioning aligns with the role; exact tenure must
     be confirmed separately.
   risk_level: high
+  approval_match_patterns:
+  - \b[1-4]\+?\s+years?\b.{0,160}\b(?:marketing automation|Marketo|campaign operations|lifecycle
+    workflows?|(?:Salesforce|SFDC).{0,40}(?:CRM|integration|sync)|(?:CRM|integration|sync).{0,40}(?:Salesforce|SFDC)|data
+    hygiene|campaign QA|revenue systems?|marketing systems?)\b
+  - \b(?:marketing automation|Marketo|campaign operations|lifecycle workflows?|(?:Salesforce|SFDC).{0,40}(?:CRM|integration|sync)|(?:CRM|integration|sync).{0,40}(?:Salesforce|SFDC)|data
+    hygiene|campaign QA|revenue systems?|marketing systems?)\b.{0,160}\b[1-4]\+?\s+years?\b
+  - \b[1-4]\+?\s+years?\b.{0,160}\b(?:digital data|analytics|GA4|Google Analytics
+    4|tag management|campaign analytics|data quality)\b
+  - \b(?:digital data|analytics|GA4|Google Analytics 4|tag management|campaign analytics|data
+    quality)\b.{0,160}\b[1-4]\+?\s+years?\b
 - claim_id: quantified_achievements
   claim_text: Reduced campaign time-to-market by 35%; activated $51M in pipeline;
     and traced $3.4M in closed-won revenue.
@@ -218,13 +233,15 @@ claims:
   risk_level: high
 - claim_id: employment_history
   claim_text: Marketing Automation & Data Manager at Teladoc Health from October 2015
-    through June 2019; Senior Specialist, Digital Data & Analytics at Ryan from July
-    2019 through February 2020.
+    through June 2019, approximately 3 years 8 months; Senior Specialist, Digital
+    Data & Analytics at Ryan from July 2019 through February 2020, approximately 8
+    months.
   category: current_role
   approval_status: APPROVED_FROM_USER_CONTEXT
   evidence_source: user_authorized_evidence_2026-06-20
-  evidence_detail: Only the two listed employers, titles, and date ranges are approved.
-    No other prior employment details are authorized by this import.
+  evidence_detail: Only the two listed employers, titles, date ranges, and approximate
+    durations are approved. No other prior employment details or full-career tenure
+    are authorized by this import.
   allowed_contexts:
   - application_answer
   - approval_pack

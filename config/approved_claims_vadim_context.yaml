@@ -1,4 +1,17 @@
 approvals:
+  - claim_id: years_of_experience
+    approval_status: APPROVED_FROM_USER_CONTEXT
+    source: user_provided_resume_context_2026-06-20
+    claim_text: 4+ years of date-backed experience across marketing automation, digital data, analytics, and revenue/marketing systems roles; including 3+ years as Marketing Automation & Data Manager at Teladoc Health.
+    note: Date-backed scope is limited to Teladoc Health from October 2015 through June 2019 and Ryan from July 2019 through February 2020, approximately 4 years 4 months combined. This does not authorize 10+ years, 15+ years, full-career tenure, KRS tenure, executive tenure, or unrelated functional tenure.
+    approval_match_patterns:
+      - '\b[1-4]\+?\s+years?\b.{0,160}\b(?:marketing automation|Marketo|campaign operations|lifecycle workflows?|(?:Salesforce|SFDC).{0,40}(?:CRM|integration|sync)|(?:CRM|integration|sync).{0,40}(?:Salesforce|SFDC)|data hygiene|campaign QA|revenue systems?|marketing systems?)\b'
+      - '\b(?:marketing automation|Marketo|campaign operations|lifecycle workflows?|(?:Salesforce|SFDC).{0,40}(?:CRM|integration|sync)|(?:CRM|integration|sync).{0,40}(?:Salesforce|SFDC)|data hygiene|campaign QA|revenue systems?|marketing systems?)\b.{0,160}\b[1-4]\+?\s+years?\b'
+      - '\b[1-4]\+?\s+years?\b.{0,160}\b(?:digital data|analytics|GA4|Google Analytics 4|tag management|campaign analytics|data quality)\b'
+      - '\b(?:digital data|analytics|GA4|Google Analytics 4|tag management|campaign analytics|data quality)\b.{0,160}\b[1-4]\+?\s+years?\b'
+    confidence: high
+    requires_user_approval: false
+
   - claim_id: quantified_achievements
     approval_status: APPROVED_FROM_USER_CONTEXT
     source: user_authorized_evidence_2026-06-20
@@ -24,8 +37,8 @@ approvals:
   - claim_id: employment_history
     approval_status: APPROVED_FROM_USER_CONTEXT
     source: user_authorized_evidence_2026-06-20
-    claim_text: Marketing Automation & Data Manager at Teladoc Health from October 2015 through June 2019; Senior Specialist, Digital Data & Analytics at Ryan from July 2019 through February 2020.
-    note: Only the two listed employers, titles, and date ranges are approved. No other prior employment details are authorized by this import.
+    claim_text: Marketing Automation & Data Manager at Teladoc Health from October 2015 through June 2019, approximately 3 years 8 months; Senior Specialist, Digital Data & Analytics at Ryan from July 2019 through February 2020, approximately 8 months.
+    note: Only the two listed employers, titles, date ranges, and approximate durations are approved. No other prior employment details or full-career tenure are authorized by this import.
     approval_match_patterns:
       - '\bTeladoc Health\b'
       - '\bRyan\b'
