@@ -134,8 +134,64 @@ def test_generic_sales_director_is_penalized():
         ),
         DEFAULT_CONFIG,
     )
-    assert result.dimensions["role_mismatch"] == -18
+    assert result.dimensions["role_mismatch"] == -30
     assert any("generic sales title" in flag for flag in result.risk_flags)
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Director, Product - Enterprise",
+        "Head of Enterprise Customer Success",
+        "Director, Technical Program Management",
+    ],
+)
+def test_off_lane_leadership_titles_are_not_worth_targeting(title):
+    config = {
+        **DEFAULT_CONFIG,
+        "off_lane_titles": [
+            "director, product",
+            "customer success",
+            "technical program management",
+        ],
+        "role_mismatch_penalty": -30,
+    }
+    result = score_job(
+        make_job(
+            title=title,
+            description=(
+                "Lead go-to-market strategy, revenue operations, and AI "
+                "transformation for a high-growth company."
+            ),
+        ),
+        config,
+    )
+    assert result.dimensions["role_mismatch"] == -30
+    assert result.verdict == FitVerdict.NOT_WORTH_TIME
+
+
+def test_paid_performance_growth_role_is_demoted():
+    config = {
+        **DEFAULT_CONFIG,
+        "reject_keywords": ["paid media", "performance marketing"],
+        "role_mismatch_penalty": -30,
+    }
+    result = score_job(
+        make_job(
+            title="Director, Growth Marketing",
+            salary_min=None,
+            salary_max=None,
+            description=(
+                "Lead paid media and performance marketing while partnering "
+                "with demand generation."
+            ),
+            requirements="8+ years leading a paid marketing function.",
+            responsibilities="Own media-channel execution.",
+        ),
+        config,
+    )
+    assert result.dimensions["role_mismatch"] == -30
+    assert result.verdict == FitVerdict.NOT_WORTH_TIME
 
 
 def test_workday_adds_friction_penalty():
@@ -253,6 +309,40 @@ def test_lever_mocked_response_normalizes():
     assert job.requirements == "GTM strategy"
     assert job.remote_type == "remote"
     assert (job.salary_min, job.salary_max, job.currency) == (190000, 230000, "USD")
+
+
+def test_lever_prefers_full_html_description_and_maps_common_section_aliases():
+    payload = [
+        {
+            "id": "lever-full-role",
+            "text": "Senior Director, Growth Marketing",
+            "hostedUrl": "https://jobs.lever.co/acme/lever-full-role",
+            "applyUrl": "https://jobs.lever.co/acme/lever-full-role/apply",
+            "descriptionPlain": "Company boilerplate only.",
+            "description": (
+                "<p>Company boilerplate.</p>"
+                "<p>Lead demand generation, ABM, and lifecycle marketing.</p>"
+            ),
+            "categories": {"team": "Marketing", "location": "Remote - US"},
+            "workplaceType": "remote",
+            "lists": [
+                {
+                    "text": "Your Daily Adventures Will Include",
+                    "content": "<li>Own global demand generation.</li>",
+                },
+                {
+                    "text": "Our Vision of You",
+                    "content": "<li>12+ years of B2B marketing experience.</li>",
+                },
+            ],
+        }
+    ]
+    job = LeverAdapter(transport=lambda _: payload).discover_jobs(
+        site="acme", company="Acme"
+    )[0]
+    assert "Lead demand generation, ABM, and lifecycle marketing." in job.description
+    assert job.responsibilities == "Own global demand generation."
+    assert job.requirements == "12+ years of B2B marketing experience."
 
 
 def test_ashby_mocked_response_normalizes():

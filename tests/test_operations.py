@@ -20,7 +20,7 @@ from application_bot.email_service import (
 from application_bot.main import build_parser
 from application_bot.models import Job
 from application_bot.packets import generate_packet, packet_to_dict
-from application_bot.pipeline import run_dry_pipeline, scan_registry
+from application_bot.pipeline import _job_relevance_score, run_dry_pipeline, scan_registry
 from application_bot.policy import evaluate_job_submission_policy
 from application_bot.reporting import write_daily_report
 from application_bot.scheduler import run_scheduler_once
@@ -145,6 +145,31 @@ def test_network_failure_is_recorded_and_pipeline_continues(tmp_path):
     assert result["real_network_scan"] is False
     assert result["sources"][0]["error"] == "offline"
     assert database.report()["source_runs"]["FAILED"] == 1
+
+
+def test_scan_relevance_demotes_off_lane_titles():
+    config = deepcopy(DEFAULT_CONFIG)
+    in_lane = Job(
+        external_id="in-lane",
+        source="greenhouse",
+        source_url="https://example.com/in-lane",
+        apply_url="https://example.com/in-lane/apply",
+        company="Acme",
+        title="Director, Business Systems",
+        description="Own GTM systems and revenue operations.",
+    )
+    off_lane = Job(
+        external_id="off-lane",
+        source="greenhouse",
+        source_url="https://example.com/off-lane",
+        apply_url="https://example.com/off-lane/apply",
+        company="Acme",
+        title="Director, Product - Enterprise",
+        description="Own GTM systems and revenue operations.",
+    )
+    assert _job_relevance_score(in_lane, config) > _job_relevance_score(
+        off_lane, config
+    )
 
 
 def make_email_job() -> Job:

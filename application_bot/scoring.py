@@ -63,13 +63,20 @@ def score_job(job: Job, config: dict[str, Any]) -> ScoreResult:
         risk_flags.append("No strong target-function keyword match.")
 
     reject_keywords = _contains_any(corpus, config.get("reject_keywords", []))
+    off_lane_titles = _contains_any(title, config.get("off_lane_titles", []))
     title_target_functions = _contains_any(
         title, config.get("target_keywords", [])
     )
     pure_sales_title = "sales" in title and not title_target_functions
-    if reject_keywords or pure_sales_title:
-        dimensions["role_mismatch"] = -18
-        mismatch = reject_keywords[:3] or ["generic sales title"]
+    if reject_keywords or off_lane_titles or pure_sales_title:
+        dimensions["role_mismatch"] = int(
+            config.get("role_mismatch_penalty", -18)
+        )
+        mismatch = (
+            off_lane_titles[:3]
+            or reject_keywords[:3]
+            or ["generic sales title"]
+        )
         risk_flags.append(f"Role mismatch signal: {', '.join(mismatch)}")
     else:
         dimensions["role_mismatch"] = 0
@@ -167,6 +174,8 @@ def score_job(job: Job, config: dict[str, Any]) -> ScoreResult:
     score = max(0, min(100, int(score)))
     if str(job.status) == "BLOCKED":
         verdict = FitVerdict.BLOCKED
+    elif off_lane_titles:
+        verdict = FitVerdict.NOT_WORTH_TIME
     elif score >= 80:
         verdict = FitVerdict.APPLY_PRIORITY
     elif score >= 65:

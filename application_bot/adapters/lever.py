@@ -34,13 +34,24 @@ class LeverAdapter(SourceAdapter):
         for section in lists:
             heading = str(section.get("text") or "").lower()
             content = strip_html(section.get("content"))
-            if "require" in heading or "qualif" in heading:
+            if (
+                "require" in heading
+                or "qualif" in heading
+                or "vision of you" in heading
+                or "who you are" in heading
+            ):
                 requirements.append(content)
-            elif "respons" in heading or "what you" in heading:
+            elif (
+                "respons" in heading
+                or "what you" in heading
+                or "daily adventures" in heading
+            ):
                 responsibilities.append(content)
         description = strip_html(
-            payload.get("descriptionPlain")
-            or payload.get("description")
+            payload.get("description")
+            or payload.get("descriptionPlain")
+            or payload.get("opening")
+            or payload.get("openingPlain")
             or payload.get("additionalPlain")
         )
         apply_url = str(payload.get("applyUrl") or payload.get("hostedUrl") or "")

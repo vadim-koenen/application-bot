@@ -75,7 +75,23 @@ def _job_relevance_score(job: Any, config: dict[str, Any] | None) -> int:
     reject_points = sum(
         8 for value in config.get("reject_titles", []) if value.lower() in title
     )
-    return title_points + function_points - reject_points
+    off_lane_points = sum(
+        20
+        for value in config.get("off_lane_titles", [])
+        if value.lower() in title
+    )
+    mismatch_points = sum(
+        5
+        for value in config.get("reject_keywords", [])
+        if value.lower() in corpus
+    )
+    return (
+        title_points
+        + function_points
+        - reject_points
+        - off_lane_points
+        - mismatch_points
+    )
 
 
 def scan_registry(

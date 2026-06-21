@@ -43,6 +43,21 @@ reject_keywords:
   - brand marketing
   - field marketing
 
+off_lane_titles:
+  - director, product
+  - director of product
+  - head of product
+  - product marketing
+  - customer success
+  - technical program management
+  - performance marketing
+  - paid media
+  - brand marketing
+  - field marketing
+  - consumer growth
+
+role_mismatch_penalty: -30
+
 location_preferences:
   remote_us:
     - remote
