@@ -24,6 +24,14 @@ def _salary_minimum(title: str, config: dict[str, Any]) -> int:
     return int(salaries.get("default", 140000))
 
 
+def _years_requirement(text: str) -> int | None:
+    values = [
+        int(match)
+        for match in re.findall(r"\b(\d{1,2})\+?\s+years?\b", text)
+    ]
+    return max(values) if values else None
+
+
 def score_job(job: Job, config: dict[str, Any]) -> ScoreResult:
     dimensions: dict[str, int] = {}
     reasons: list[str] = []
@@ -80,6 +88,33 @@ def score_job(job: Job, config: dict[str, Any]) -> ScoreResult:
         risk_flags.append(f"Role mismatch signal: {', '.join(mismatch)}")
     else:
         dimensions["role_mismatch"] = 0
+
+    required_years = _years_requirement(corpus)
+    if required_years is not None:
+        years_config = config.get("years_requirement_scoring", {})
+        approved_years = int(years_config.get("approved_years", 14))
+        moderate_threshold = int(
+            years_config.get("moderate_threshold", approved_years + 1)
+        )
+        high_threshold = int(years_config.get("high_threshold", 18))
+        if required_years >= high_threshold:
+            penalty = int(years_config.get("high_penalty", -15))
+        elif required_years >= moderate_threshold:
+            penalty = int(years_config.get("moderate_penalty", -6))
+        else:
+            penalty = 0
+        dimensions["years_requirement"] = penalty
+        if penalty:
+            risk_flags.append(
+                f"Posting requests {required_years}+ years; approved evidence "
+                f"supports {approved_years} years. Treat as a fit penalty and "
+                f"do not claim {required_years}+ years."
+            )
+        else:
+            reasons.append(
+                f"Years requirement ({required_years}+) is within the approved "
+                f"{approved_years}-year evidence window."
+            )
 
     location = f"{job.location} {job.remote_type}".lower()
     preferences = config.get("location_preferences", {})

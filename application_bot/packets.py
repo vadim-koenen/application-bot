@@ -37,6 +37,22 @@ def slugify(value: str) -> str:
     return value[:80] or "unknown"
 
 
+def _approved_tenure_years(evidence: dict[str, Any]) -> int:
+    claim_text = next(
+        (
+            str(claim.get("claim_text") or "")
+            for claim in evidence.get("claims", [])
+            if claim.get("claim_id") == "years_of_experience"
+        ),
+        "",
+    )
+    years = [
+        int(value)
+        for value in re.findall(r"\b(\d{1,2})\+?\s+years?\b", claim_text)
+    ]
+    return max(years) if years else 0
+
+
 def assess_packet(
     job: Job,
     config: dict[str, Any],
@@ -74,6 +90,34 @@ def assess_packet(
         evidence,
         corpus=claim_corpus,
     )
+    soft_requirement_claims = set(
+        config.get("packet_soft_requirement_claims", [])
+    )
+    required_soft_tenure = int(
+        config.get("years_requirement_scoring", {}).get(
+            "approved_years",
+            14,
+        )
+    )
+    soft_claim_gaps = {
+        claim_id
+        for claim_id in claim_gaps
+        if claim_id in soft_requirement_claims
+        and claim_is_approved(
+            claim_id,
+            evidence,
+            context="packet_text",
+        )
+        and (
+            claim_id != "years_of_experience"
+            or _approved_tenure_years(evidence) >= required_soft_tenure
+        )
+    }
+    claim_gaps = [
+        claim_id
+        for claim_id in claim_gaps
+        if claim_id not in soft_claim_gaps
+    ]
 
     if str(policy.decision) == "BLOCKED" or str(job.verdict) == "BLOCKED":
         return PacketAssessment(
@@ -108,7 +152,15 @@ def assess_packet(
         return PacketAssessment(
             PacketStatus.PACKET_READY,
             [],
-            ["TARGET_FIT", "APPROVED_CLAIMS_SUFFICIENT"],
+            [
+                "TARGET_FIT",
+                "APPROVED_CLAIMS_SUFFICIENT",
+                *(
+                    ["SOFT_REQUIREMENT_MISMATCH"]
+                    if soft_claim_gaps
+                    else []
+                ),
+            ],
             "Review the claim-safe packet and complete the application manually.",
             True,
         )
@@ -190,6 +242,8 @@ def generate_packet(
         gap_id
         for gap_id in detect_claim_gaps(job, inventory)
         if gap_id not in assessment.claim_gaps
+        and gap_id
+        not in set(config.get("packet_soft_requirement_claims", []))
         and gap_id not in approved_claim_ids
     )
     current_positioning = business["approved_display"]

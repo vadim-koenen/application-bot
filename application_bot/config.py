@@ -63,6 +63,14 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "consumer growth",
     ],
     "role_mismatch_penalty": -30,
+    "years_requirement_scoring": {
+        "approved_years": 14,
+        "moderate_threshold": 15,
+        "moderate_penalty": -6,
+        "high_threshold": 18,
+        "high_penalty": -15,
+    },
+    "packet_soft_requirement_claims": ["years_of_experience"],
     "location_preferences": {
         "remote_us": ["remote", "united states", "us remote", "remote - us"],
         "dfw": ["dallas", "plano", "dfw", "fort worth"],

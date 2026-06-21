@@ -417,8 +417,86 @@ def test_full_resume_tenure_clears_systems_requirement_not_unsupported_scope(
     assert unsupported_assessment.status == PacketStatus.REVIEW_PACKET_CLAIM_GAPS
     assert unsupported_assessment.claim_gaps == [
         "leadership_team_size",
-        "years_of_experience",
     ]
+
+
+def test_approved_tenure_makes_fifteen_year_requirement_soft_not_claimed(
+    tmp_path,
+):
+    config = temp_config(tmp_path)
+    config["years_requirement_scoring"] = {
+        "approved_years": 14,
+        "moderate_threshold": 15,
+        "moderate_penalty": -6,
+        "high_threshold": 18,
+        "high_penalty": -15,
+    }
+    config["packet_soft_requirement_claims"] = ["years_of_experience"]
+    import_claim_approvals(
+        config["claim_evidence"],
+        "config/approved_claims_vadim_context.yaml",
+    )
+    evidence = load_claim_evidence(config["claim_evidence"])
+    inventory = load_claim_inventory(config["resume_claim_inventory"])
+    job = approval_job()
+    job.requirements = (
+        "15+ years of revenue systems and marketing operations experience."
+    )
+    result = score_job(job, config)
+    job.score = result.score
+    job.verdict = str(result.verdict)
+    job.score_details_json = json.dumps(
+        {
+            "dimensions": result.dimensions,
+            "reasons": result.reasons,
+            "risk_flags": result.risk_flags,
+        }
+    )
+    assessment = assess_packet(
+        job,
+        config,
+        evaluate_job_submission_policy(job, config),
+        inventory,
+        evidence,
+    )
+    packet = generate_packet(
+        job,
+        config,
+        evaluate_job_submission_policy(job, config),
+        inventory=inventory,
+        evidence=evidence,
+        assessment=assessment,
+    )
+    generated = " ".join(
+        (packet.tailored_summary, packet.cover_email, packet.cover_letter)
+    )
+    assert assessment.status == PacketStatus.PACKET_READY
+    assert assessment.claim_gaps == []
+    assert "SOFT_REQUIREMENT_MISMATCH" in assessment.reason_codes
+    assert "15+ years" not in generated
+
+
+def test_pending_tenure_still_blocks_fifteen_year_requirement(tmp_path):
+    config = temp_config(tmp_path)
+    config["packet_soft_requirement_claims"] = ["years_of_experience"]
+    set_claim_pending(config, "years_of_experience")
+    evidence = load_claim_evidence(config["claim_evidence"])
+    inventory = load_claim_inventory(config["resume_claim_inventory"])
+    job = approval_job()
+    job.requirements = "15+ years of marketing operations experience."
+    result = score_job(job, config)
+    job.score = result.score
+    job.verdict = str(result.verdict)
+    job.score_details_json = json.dumps({"dimensions": result.dimensions})
+    assessment = assess_packet(
+        job,
+        config,
+        evaluate_job_submission_policy(job, config),
+        inventory,
+        evidence,
+    )
+    assert assessment.status == PacketStatus.REVIEW_PACKET_CLAIM_GAPS
+    assert assessment.claim_gaps == ["years_of_experience"]
 
 
 def test_answer_bank_loads_with_sensitive_review_rules():

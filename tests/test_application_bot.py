@@ -194,6 +194,38 @@ def test_paid_performance_growth_role_is_demoted():
     assert result.verdict == FitVerdict.NOT_WORTH_TIME
 
 
+@pytest.mark.parametrize("required_years", [8, 10, 12, 14])
+def test_supported_years_requirements_have_no_penalty(required_years):
+    result = score_job(
+        make_job(
+            requirements=(
+                f"{required_years}+ years of marketing operations experience."
+            )
+        ),
+        DEFAULT_CONFIG,
+    )
+    assert result.dimensions["years_requirement"] == 0
+
+
+def test_fifteen_year_requirement_is_a_soft_penalty():
+    result = score_job(
+        make_job(requirements="15+ years of revenue operations experience."),
+        DEFAULT_CONFIG,
+    )
+    assert result.dimensions["years_requirement"] == -6
+    assert result.verdict in {FitVerdict.APPLY_PRIORITY, FitVerdict.GOOD_FIT}
+    assert any("do not claim 15+ years" in flag for flag in result.risk_flags)
+
+
+def test_eighteen_year_requirement_has_larger_penalty():
+    result = score_job(
+        make_job(requirements="18+ years of marketing operations experience."),
+        DEFAULT_CONFIG,
+    )
+    assert result.dimensions["years_requirement"] == -15
+    assert result.score < score_job(make_job(), DEFAULT_CONFIG).score
+
+
 def test_workday_adds_friction_penalty():
     normal = score_job(make_job(), DEFAULT_CONFIG)
     workday = score_job(
