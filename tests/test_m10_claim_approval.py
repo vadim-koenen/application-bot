@@ -7,6 +7,7 @@ import shutil
 
 from application_bot.answers import build_answer_draft
 from application_bot.claims import (
+    approved_claim_count,
     claim_counts,
     claim_gap_rows,
     export_approval_pack,
@@ -75,17 +76,42 @@ def prepare_database(tmp_path: Path, config: dict) -> tuple[Database, int]:
     return database, job_id
 
 
+def set_claim_pending(config: dict, claim_id: str) -> None:
+    update_claim_status(
+        config["claim_evidence"],
+        claim_id,
+        "PENDING_USER_APPROVAL",
+        source="test_fixture",
+        note="Test fixture intentionally keeps this claim pending.",
+    )
+
+
 def test_claim_evidence_inventory_loads_and_counts():
     evidence = load_claim_evidence("config/claim_evidence.yaml")
     result = list_claims(evidence)
-    assert result["counts"]["APPROVED_FROM_USER_CONTEXT"] >= 8
+    assert approved_claim_count(result["counts"]) == 16
+    assert result["counts"]["APPROVED_FROM_RESUME"] >= 1
+    assert result["counts"]["APPROVED_FROM_WEBSITE"] >= 1
     assert result["counts"]["PENDING_USER_APPROVAL"] >= 1
     assert result["counts"]["DO_NOT_USE"] >= 1
     assert all("allowed_contexts" in claim for claim in result["claims"])
 
 
+def test_resume_and_website_approval_statuses_are_counted(tmp_path):
+    config = temp_config(tmp_path)
+    import_claim_approvals(
+        config["claim_evidence"],
+        "config/approved_claims_vadim_context.yaml",
+    )
+    counts = claim_counts(load_claim_evidence(config["claim_evidence"]))
+    assert counts["APPROVED_FROM_RESUME"] >= 1
+    assert counts["APPROVED_FROM_WEBSITE"] >= 1
+    assert approved_claim_count(counts) == 16
+
+
 def test_approved_claim_is_used_and_pending_claim_is_not(tmp_path):
     config = temp_config(tmp_path)
+    set_claim_pending(config, "years_of_experience")
     job = approval_job()
     score = score_job(job, config)
     job.score = score.score
@@ -104,7 +130,11 @@ def test_approved_claim_is_used_and_pending_claim_is_not(tmp_path):
         answer_bank=load_answer_bank(config["application_answer_bank"]),
         assessment=assessment,
     )
-    assert "Principal Consultant | Revenue Systems Architecture & AI-Enabled GTM" in packet.tailored_summary
+    assert "Revenue Systems Architect" in packet.tailored_summary
+    assert (
+        "Principal Consultant, Revenue Systems Architecture & AI-Enabled GTM"
+        in packet.tailored_summary
+    )
     assert "Exact years of experience are pending" not in packet.tailored_summary
     assert "years_of_experience" in packet.pending_claims_not_used
     assert packet.safe_substitutions
@@ -163,6 +193,7 @@ def test_rejected_positioning_is_withheld_from_packet_text(tmp_path):
 
 def test_claim_gaps_and_approval_pack_export(tmp_path):
     config = temp_config(tmp_path)
+    set_claim_pending(config, "years_of_experience")
     database, _ = prepare_database(tmp_path, config)
     refresh_packets(database=database, output_root=tmp_path / "packets", config=config)
     evidence = load_claim_evidence(config["claim_evidence"])
@@ -179,6 +210,7 @@ def test_claim_gaps_and_approval_pack_export(tmp_path):
 
 def test_explicit_approval_converts_packet_to_ready(tmp_path):
     config = temp_config(tmp_path)
+    set_claim_pending(config, "years_of_experience")
     database, _ = prepare_database(tmp_path, config)
     before = refresh_packets(
         database=database, output_root=tmp_path / "before", config=config
@@ -333,6 +365,60 @@ approvals:
         evidence,
     )
     assert "years_of_experience" in unrelated_assessment.claim_gaps
+
+
+def test_full_resume_tenure_clears_systems_requirement_not_unsupported_scope(
+    tmp_path,
+):
+    config = temp_config(tmp_path)
+    import_claim_approvals(
+        config["claim_evidence"],
+        "config/approved_claims_vadim_context.yaml",
+    )
+    evidence = load_claim_evidence(config["claim_evidence"])
+    inventory = load_claim_inventory(config["resume_claim_inventory"])
+
+    systems_job = approval_job()
+    systems_job.requirements = (
+        "10+ years of experience in marketing operations and revenue systems."
+    )
+    systems_score = score_job(systems_job, config)
+    systems_job.score = systems_score.score
+    systems_job.verdict = str(systems_score.verdict)
+    systems_job.score_details_json = json.dumps(
+        {"dimensions": systems_score.dimensions}
+    )
+    systems_assessment = assess_packet(
+        systems_job,
+        config,
+        evaluate_job_submission_policy(systems_job, config),
+        inventory,
+        evidence,
+    )
+    assert systems_assessment.status == PacketStatus.PACKET_READY
+
+    unsupported_job = approval_job()
+    unsupported_job.requirements = (
+        "15+ years leading paid media and managing managers."
+    )
+    unsupported_score = score_job(unsupported_job, config)
+    unsupported_job.score = unsupported_score.score
+    unsupported_job.verdict = str(unsupported_score.verdict)
+    unsupported_job.score_details_json = json.dumps(
+        {"dimensions": unsupported_score.dimensions}
+    )
+    unsupported_assessment = assess_packet(
+        unsupported_job,
+        config,
+        evaluate_job_submission_policy(unsupported_job, config),
+        inventory,
+        evidence,
+    )
+    assert unsupported_assessment.status == PacketStatus.REVIEW_PACKET_CLAIM_GAPS
+    assert unsupported_assessment.claim_gaps == [
+        "leadership_team_size",
+        "years_of_experience",
+    ]
 
 
 def test_answer_bank_loads_with_sensitive_review_rules():

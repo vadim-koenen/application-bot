@@ -4,10 +4,11 @@ from copy import deepcopy
 import csv
 import json
 from pathlib import Path
+import shutil
 
 import yaml
 
-from application_bot.claims import packet_claim_violations
+from application_bot.claims import packet_claim_violations, update_claim_status
 from application_bot.config import (
     DEFAULT_CONFIG,
     load_claim_inventory,
@@ -77,6 +78,21 @@ def run_fixture_pipeline(tmp_path: Path, config: dict | None = None):
     )
 
 
+def config_with_pending_tenure(tmp_path: Path) -> dict:
+    config = deepcopy(DEFAULT_CONFIG)
+    evidence = tmp_path / "claim_evidence.yaml"
+    shutil.copy(config["claim_evidence"], evidence)
+    config["claim_evidence"] = str(evidence)
+    update_claim_status(
+        evidence,
+        "years_of_experience",
+        "PENDING_USER_APPROVAL",
+        source="test_fixture",
+        note="Test fixture intentionally keeps tenure pending.",
+    )
+    return config
+
+
 def test_claim_inventory_loads_required_safe_content():
     inventory = load_claim_inventory(CLAIMS)
     assert inventory["identity"]["name"] == "Vadim Koenen"
@@ -102,17 +118,18 @@ def test_packet_uses_only_approved_claims(tmp_path):
     assert "grew revenue" not in packet.cover_letter.lower()
 
 
-def test_unverified_requirements_become_claim_gaps():
+def test_unverified_requirements_become_claim_gaps(tmp_path):
+    config = config_with_pending_tenure(tmp_path)
     job = fixture_jobs()[3]
-    result = score_job(job, DEFAULT_CONFIG)
+    result = score_job(job, config)
     job.score = result.score
     job.verdict = str(result.verdict)
     job.score_details_json = json.dumps({"dimensions": result.dimensions})
     inventory = load_claim_inventory(CLAIMS)
     assessment = assess_packet(
         job,
-        DEFAULT_CONFIG,
-        evaluate_job_submission_policy(job, DEFAULT_CONFIG),
+        config,
+        evaluate_job_submission_policy(job, config),
         inventory,
     )
     assert assessment.status == PacketStatus.REVIEW_PACKET_CLAIM_GAPS
@@ -134,7 +151,10 @@ def test_realistic_senior_target_roles_export_ready_packets(tmp_path):
 
 
 def test_claim_gap_role_exports_review_packet(tmp_path):
-    result = run_fixture_pipeline(tmp_path)
+    result = run_fixture_pipeline(
+        tmp_path,
+        config_with_pending_tenure(tmp_path),
+    )
     assert result["review_packets_claim_gaps"] >= 1
     review_paths = [path for path in result["packet_paths"] if "/review/" in path]
     assert any("director-marketing-operations" in path for path in review_paths)

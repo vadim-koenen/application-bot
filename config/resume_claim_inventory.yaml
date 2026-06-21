@@ -100,13 +100,17 @@ prohibited_or_unverified_claims:
     patterns:
       - "\\b(increased|grew|generated|delivered|reduced|improved)\\b.{0,40}\\b\\d+(?:\\.\\d+)?%?\\b"
   - id: leadership_team_size
-    description: Exact team size requires user evidence.
+    description: Exact team size and broader people-management scope require evidence.
     patterns:
       - "\\b(team of|managed|led)\\s+\\d+\\b"
+      - "\\bmanag(?:e|ed|ing)\\s+(?:a\\s+)?team\\b"
+      - "\\bmanag(?:e|ed|ing)\\s+(?:managers|direct reports|senior individual contributors|senior ICs)\\b"
+      - "\\blead(?:ing)?\\s+and\\s+developing\\s+(?:product\\s+)?(?:ICs|managers)\\b"
+      - "\\bpeople[- ]management\\b"
   - id: budget_ownership
     description: Exact budget ownership requires user evidence.
     patterns:
-      - "\\$\\s?\\d+(?:\\.\\d+)?\\s?(?:m|mm|million|k|thousand)?\\s+(?:budget|spend)"
+      - "\\$\\s?(?:\\d+(?:\\.\\d+)?|x{1,3})\\s?(?:m|mm|million|k|thousand)?(?:\\s+\\w+){0,4}\\s+(?:budget|spend)"
   - id: work_authorization
     description: Work authorization and sponsorship answers require user confirmation.
     patterns:

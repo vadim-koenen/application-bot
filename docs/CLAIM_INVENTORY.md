@@ -35,5 +35,6 @@ Never paste a job requirement into the inventory as if it were candidate
 experience.
 
 Approval statuses are `APPROVED`, `APPROVED_FROM_USER_CONTEXT`,
-`PENDING_USER_APPROVAL`, `REJECTED`, and `DO_NOT_USE`. Only the first two can
-be used, and only in explicitly allowed contexts.
+`APPROVED_FROM_RESUME`, `APPROVED_FROM_WEBSITE`,
+`PENDING_USER_APPROVAL`, `REJECTED`, and `DO_NOT_USE`. Only approved statuses
+can be used, and only in explicitly allowed and evidence-matched contexts.

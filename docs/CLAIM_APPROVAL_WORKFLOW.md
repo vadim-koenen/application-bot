@@ -40,6 +40,11 @@ Tenure approvals follow the same rule. A date-backed four-year claim can clear
 only compatible requirements in its approved functions; it cannot satisfy an
 8-, 10-, or 15-year requirement or tenure in an unrelated function.
 
+Source-specific statuses distinguish provenance:
+`APPROVED_FROM_RESUME` is grounded in the approved resume artifact and
+`APPROVED_FROM_WEBSITE` is grounded in the verified live professional site.
+Both remain subject to allowed contexts and approval match patterns.
+
 Refresh after evidence changes:
 
 ```bash

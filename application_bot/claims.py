@@ -12,7 +12,12 @@ from application_bot.database import Database
 from application_bot.models import ApplicationPacket, Job
 
 
-APPROVED_STATUSES = {"APPROVED", "APPROVED_FROM_USER_CONTEXT"}
+APPROVED_STATUSES = {
+    "APPROVED",
+    "APPROVED_FROM_USER_CONTEXT",
+    "APPROVED_FROM_RESUME",
+    "APPROVED_FROM_WEBSITE",
+}
 VALID_STATUSES = APPROVED_STATUSES | {
     "PENDING_USER_APPROVAL",
     "REJECTED",
@@ -196,6 +201,10 @@ def claim_counts(evidence: dict[str, Any]) -> dict[str, int]:
         status = str(claim.get("approval_status") or "")
         counts[status] = counts.get(status, 0) + 1
     return counts
+
+
+def approved_claim_count(counts: dict[str, int]) -> int:
+    return sum(int(counts.get(status) or 0) for status in APPROVED_STATUSES)
 
 
 def list_claims(evidence: dict[str, Any]) -> dict[str, Any]:

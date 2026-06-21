@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from application_bot.claims import approved_claim_count
 from application_bot.database import Database
 from application_bot.models import utc_now
 
@@ -84,7 +85,7 @@ def render_daily_report_markdown(report: dict[str, Any]) -> str:
 ## Packet Conversion
 
 - No-packet reason counts: {json.dumps(quality.get('no_packet_reason_counts', {}), sort_keys=True)}
-- Claims approved: {claim_readiness.get('APPROVED', 0) + claim_readiness.get('APPROVED_FROM_USER_CONTEXT', 0)}
+- Claims approved: {approved_claim_count(claim_readiness)}
 - Claims pending: {claim_readiness.get('PENDING_USER_APPROVAL', 0)}
 - Claims rejected: {claim_readiness.get('REJECTED', 0)}
 - Claims do not use: {claim_readiness.get('DO_NOT_USE', 0)}

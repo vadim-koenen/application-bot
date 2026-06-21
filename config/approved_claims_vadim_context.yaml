@@ -1,65 +1,135 @@
 approvals:
+  - claim_id: identity_name
+    approval_status: APPROVED_FROM_RESUME
+    source: Vadim-Koenen-Resume-June-2026.pdf
+    claim_text: Vadim Koenen
+    note: Name appears in the June 2026 resume.
+    confidence: high
+    requires_user_approval: false
+
+  - claim_id: company_identity
+    approval_status: APPROVED_FROM_WEBSITE
+    source: https://vadimkoenen.com/
+    claim_text: Koenen Revenue Systems (KRS)
+    note: The live website identifies Koenen Revenue Systems as Vadim Koenen's revenue-systems architecture practice.
+    confidence: high
+    requires_user_approval: false
+
+  - claim_id: website
+    approval_status: APPROVED_FROM_WEBSITE
+    source: https://vadimkoenen.com/
+    claim_text: https://vadimkoenen.com/
+    note: Verified directly from the live website.
+    confidence: high
+    requires_user_approval: false
+
+  - claim_id: linkedin
+    approval_status: APPROVED_FROM_RESUME
+    source: Vadim-Koenen-Resume-June-2026.pdf
+    claim_text: https://linkedin.com/in/vadimkoenen
+    note: LinkedIn is present in the resume contact header and linked from the live website.
+    confidence: high
+    requires_user_approval: false
+
+  - claim_id: current_positioning
+    approval_status: APPROVED_FROM_RESUME
+    source: Vadim-Koenen-Resume-June-2026.pdf
+    claim_text: Revenue Systems Architect | Senior Marketing Operations, MarTech & AI-Enabled GTM Leader | Principal Consultant, Revenue Systems Architecture & AI-Enabled GTM
+    note: Exact positioning and current KRS title are present in the June 2026 resume.
+    confidence: high
+    requires_user_approval: false
+
+  - claim_id: krs_positioning
+    approval_status: APPROVED_FROM_WEBSITE
+    source: https://vadimkoenen.com/
+    claim_text: Revenue systems architecture for modern B2B teams across Marketo, Salesforce, 6sense, lifecycle, scoring, routing, CRM sync, reporting, attribution, campaign QA, data integrity, and AI-enabled GTM workflows.
+    note: Verified from the live website's hero, capabilities, operating-layer, proof, and FAQ sections.
+    confidence: high
+    requires_user_approval: false
+
+  - claim_id: approved_platform_keywords
+    approval_status: APPROVED_FROM_RESUME
+    source: Vadim-Koenen-Resume-June-2026.pdf
+    claim_text: Marketo, Adobe Marketo Engage, Salesforce, Microsoft Dynamics, HubSpot, 6sense, Salesloft, Workato, Google Analytics, Tableau, Looker, Python, OpenAI API, agentic AI, prompt engineering, LLM model selection, CRM sync logic, routing, scoring, attribution readiness, identity resolution, first-party data architecture, HIPAA/GDPR, tag management, ABM, lifecycle workflows, campaign QA, smart campaigns, and nurture programs.
+    note: These platforms and skills are listed in the resume and corroborated by the live website where applicable.
+    confidence: high
+    requires_user_approval: false
+
+  - claim_id: geography_preference
+    approval_status: APPROVED_FROM_WEBSITE
+    source: https://vadimkoenen.com/
+    claim_text: Plano, Texas based; works remotely.
+    note: The live website states Plano, Texas and remote work; the resume states Plano, TX (Remote).
+    confidence: high
+    requires_user_approval: false
+
   - claim_id: years_of_experience
-    approval_status: APPROVED_FROM_USER_CONTEXT
-    source: user_provided_resume_context_2026-06-20
-    claim_text: 4+ years of date-backed experience across marketing automation, digital data, analytics, and revenue/marketing systems roles; including 3+ years as Marketing Automation & Data Manager at Teladoc Health.
-    note: Date-backed scope is limited to Teladoc Health from October 2015 through June 2019 and Ryan from July 2019 through February 2020, approximately 4 years 4 months combined. This does not authorize 10+ years, 15+ years, full-career tenure, KRS tenure, executive tenure, or unrelated functional tenure.
+    approval_status: APPROVED_FROM_RESUME
+    source: Vadim-Koenen-Resume-June-2026.pdf
+    claim_text: 14 years building revenue systems and B2B marketing operations; 10+ years of date-backed experience across marketing automation, revenue systems, MarTech operations, digital analytics, lifecycle architecture, CRM sync, ABM, and GTM systems.
+    note: The resume and live website both state 14 years. Date-backed roles run from Teladoc Health in October 2015 through KRS in the present. This does not authorize 15+ years or tenure in unrelated functions such as product leadership, paid-media leadership, sales leadership, customer success, or executive-assistant work.
     approval_match_patterns:
-      - '\b[1-4]\+?\s+years?\b.{0,160}\b(?:marketing automation|Marketo|campaign operations|lifecycle workflows?|(?:Salesforce|SFDC).{0,40}(?:CRM|integration|sync)|(?:CRM|integration|sync).{0,40}(?:Salesforce|SFDC)|data hygiene|campaign QA|revenue systems?|marketing systems?)\b'
-      - '\b(?:marketing automation|Marketo|campaign operations|lifecycle workflows?|(?:Salesforce|SFDC).{0,40}(?:CRM|integration|sync)|(?:CRM|integration|sync).{0,40}(?:Salesforce|SFDC)|data hygiene|campaign QA|revenue systems?|marketing systems?)\b.{0,160}\b[1-4]\+?\s+years?\b'
-      - '\b[1-4]\+?\s+years?\b.{0,160}\b(?:digital data|analytics|GA4|Google Analytics 4|tag management|campaign analytics|data quality)\b'
-      - '\b(?:digital data|analytics|GA4|Google Analytics 4|tag management|campaign analytics|data quality)\b.{0,160}\b[1-4]\+?\s+years?\b'
+      - '\b(?:[1-9]|1[0-4])\+?\s+years?\b.{0,180}\b(?:marketing automation|Marketo|campaign operations|marketing operations|MarTech|lifecycle|CRM sync|CRM integration|revenue systems?|marketing systems?|GTM systems?|business systems|enterprise applications|digital data|digital analytics|analytics|GA4|Google Analytics|tag management|campaign analytics|data quality|ABM|attribution|identity resolution)\b'
+      - '\b(?:marketing automation|Marketo|campaign operations|marketing operations|MarTech|lifecycle|CRM sync|CRM integration|revenue systems?|marketing systems?|GTM systems?|business systems|enterprise applications|digital data|digital analytics|analytics|GA4|Google Analytics|tag management|campaign analytics|data quality|ABM|attribution|identity resolution)\b.{0,180}\b(?:[1-9]|1[0-4])\+?\s+years?\b'
     confidence: high
     requires_user_approval: false
 
   - claim_id: quantified_achievements
-    approval_status: APPROVED_FROM_USER_CONTEXT
-    source: user_authorized_evidence_2026-06-20
-    claim_text: Reduced campaign time-to-market by 35%; activated $51M in pipeline; and traced $3.4M in closed-won revenue.
-    note: Only these three exact metrics are approved. No other revenue, pipeline, growth, conversion, or cost metric is authorized.
+    approval_status: APPROVED_FROM_RESUME
+    source: Vadim-Koenen-Resume-June-2026.pdf
+    claim_text: Drove $51M in pipeline opportunities and $3.4M in closed-won revenue through intent data and identity-resolution models; reduced campaign time-to-market by 35%; deployed 25+ named-account microsites; audited four global Marketo instances; and maintained or audited 250+ step HubSpot workflows.
+    note: Approval is limited to the exact metrics listed in the resume and corroborated on the live website where applicable.
     approval_match_patterns:
       - '35%'
       - '\$51M\b'
       - '\$3\.4M\b'
+      - '\b25\+\b.{0,60}\bmicrosites?\b'
+      - '\bfour\b.{0,60}\bMarketo instances?\b'
+      - '\b250\+\b.{0,60}\bHubSpot workflows?\b'
     confidence: high
     requires_user_approval: false
 
   - claim_id: leadership_team_size
-    approval_status: APPROVED_FROM_USER_CONTEXT
-    source: user_authorized_evidence_2026-06-20
-    claim_text: Led a six-person team.
-    note: Approval is limited to a six-person team and does not authorize any broader management-scope claim.
+    approval_status: APPROVED_FROM_RESUME
+    source: Vadim-Koenen-Resume-June-2026.pdf
+    claim_text: Led a six-person global data operations team.
+    note: Approval is limited to the six-person global data operations team and does not authorize managing managers, a different team size, or broader people-management scope.
     approval_match_patterns:
       - '\b(?:team of 6|six-person team)\b'
     confidence: high
     requires_user_approval: false
 
   - claim_id: employment_history
-    approval_status: APPROVED_FROM_USER_CONTEXT
-    source: user_authorized_evidence_2026-06-20
-    claim_text: Marketing Automation & Data Manager at Teladoc Health from October 2015 through June 2019, approximately 3 years 8 months; Senior Specialist, Digital Data & Analytics at Ryan from July 2019 through February 2020, approximately 8 months.
-    note: Only the two listed employers, titles, date ranges, and approximate durations are approved. No other prior employment details or full-career tenure are authorized by this import.
+    approval_status: APPROVED_FROM_RESUME
+    source: Vadim-Koenen-Resume-June-2026.pdf
+    claim_text: Principal Consultant at Koenen Revenue Systems from May 2025 to present; Strategic Lead, Enterprise Architecture residency at Mod Op from January 2026 through March 2026; Senior Manager, Global Marketing Operations at Mitel from August 2020 through May 2025; Senior Specialist, Digital Data & Analytics at Ryan from July 2019 through February 2020; and Marketing Automation & Data Manager at Teladoc Health from October 2015 through June 2019.
+    note: Approval is limited to the employers, titles, and date ranges listed in the June 2026 resume.
     approval_match_patterns:
+      - '\bKoenen Revenue Systems\b|\bKRS\b'
+      - '\bMod Op\b'
+      - '\bMitel\b'
       - '\bTeladoc Health\b'
       - '\bRyan\b'
     confidence: high
     requires_user_approval: false
 
   - claim_id: certifications
-    approval_status: APPROVED_FROM_USER_CONTEXT
-    source: user_authorized_evidence_2026-06-20
-    claim_text: 2x Marketo Certified Expert; 6sense Next-Gen Admin; HubSpot Certified.
-    note: Approval is limited to the three certification statements listed in claim_text.
+    approval_status: APPROVED_FROM_RESUME
+    source: Vadim-Koenen-Resume-June-2026.pdf
+    claim_text: 2x Marketo Certified Expert; 6sense Next-Gen Admin; HubSpot Certified; Salesloft Certified Admin; HackerRank SQL (Basic).
+    note: Approval is limited to the five certification statements listed in the resume.
     approval_match_patterns:
       - '\bMarketo\b.{0,40}\b(?:certified|certification)\b'
       - '\b6sense\b.{0,40}\b(?:certified|certification|admin)\b'
       - '\bHubSpot\b.{0,40}\b(?:certified|certification)\b'
+      - '\bSalesloft\b.{0,40}\b(?:certified|certification|admin)\b'
+      - '\bHackerRank\b.{0,40}\bSQL\b'
     confidence: high
     requires_user_approval: false
 
   - claim_id: degrees
-    approval_status: APPROVED_FROM_USER_CONTEXT
-    source: user_authorized_evidence_2026-06-20
+    approval_status: APPROVED_FROM_RESUME
+    source: Vadim-Koenen-Resume-June-2026.pdf
     claim_text: MBA, Maryville University; B.A. in International Studies, Southern Methodist University.
     note: Approval is limited to these two degrees and institutions.
     approval_match_patterns:
@@ -69,10 +139,10 @@ approvals:
     requires_user_approval: false
 
   - claim_id: named_tool_proficiency
-    approval_status: APPROVED_FROM_USER_CONTEXT
-    source: user_authorized_evidence_2026-06-20
-    claim_text: Proficient with Marketo, Salesforce CRM/SFDC, HubSpot, Microsoft Dynamics, Workato, 6sense, Salesloft, Google Analytics 4, tag management, Python, OpenAI API, Claude API, CRM integration logic, ABM, lifecycle workflows, segmentation, attribution, campaign QA, data hygiene, and GTM analytics.
-    note: Approval is limited to the named tools and capabilities in claim_text and does not imply unlisted certifications, employers, or quantified outcomes.
+    approval_status: APPROVED_FROM_RESUME
+    source: Vadim-Koenen-Resume-June-2026.pdf
+    claim_text: Experienced across Marketo, Adobe Marketo Engage, Salesforce, Microsoft Dynamics, HubSpot, 6sense, Salesloft, Workato, Google Analytics, Tableau, Looker, Python, OpenAI API, agentic AI, prompt engineering, LLM model selection, CRM sync logic, routing, scoring, attribution readiness, identity resolution, first-party data architecture, HIPAA/GDPR, tag management, ABM, lifecycle workflows, campaign QA, smart campaigns, and nurture programs.
+    note: Approval is limited to the named tools and capabilities listed in the resume and live website; it does not imply unlisted certifications, employers, or quantified outcomes.
     approval_match_patterns:
       - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bMarketo\b'
       - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\b(?:Salesforce|SFDC)\b'
@@ -85,7 +155,6 @@ approvals:
       - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\btag management\b'
       - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bPython\b'
       - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bOpenAI API\b'
-      - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bClaude API\b'
       - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bCRM integration\b'
       - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\bABM\b'
       - '\b(?:expert|expertise|proficient|proficiency|certified)\s+(?:in|with)?\s*.{0,80}\blifecycle workflows?\b'
