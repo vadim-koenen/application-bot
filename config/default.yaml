@@ -17,18 +17,31 @@ target_keywords:
   - growth marketing
   - demand generation
   - revenue systems
+  - revenue operations
+  - revops
   - gtm systems
   - go-to-market
   - gtm strategy
   - marketing operations
+  - marketing technology
+  - martech
+  - marketing systems
   - lifecycle marketing
-  - performance marketing
+  - lifecycle operations
+  - marketing automation
+  - abm
   - ai transformation
 
 reject_keywords:
   - account executive
   - sales representative
   - cold calling
+  - product marketing
+  - paid media
+  - performance marketing
+  - media buying
+  - brand marketing
+  - field marketing
 
 location_preferences:
   remote_us:
