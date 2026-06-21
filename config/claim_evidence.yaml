@@ -177,12 +177,12 @@ claims:
     operations|marketing operations|MarTech|lifecycle|CRM sync|CRM integration|revenue
     systems?|marketing systems?|GTM systems?|business systems|enterprise applications|digital
     data|digital analytics|analytics|GA4|Google Analytics|tag management|campaign
-    analytics|data quality|ABM|attribution|identity resolution)\b
+    analytics|data quality|ABM|attribution|identity resolution|demand generation|revenue operations|RevOps|growth|marketing technology)\b
   - \b(?:marketing automation|Marketo|campaign operations|marketing operations|MarTech|lifecycle|CRM
     sync|CRM integration|revenue systems?|marketing systems?|GTM systems?|business
     systems|enterprise applications|digital data|digital analytics|analytics|GA4|Google
     Analytics|tag management|campaign analytics|data quality|ABM|attribution|identity
-    resolution)\b.{0,180}\b(?:[1-9]|1[0-4])\+?\s+years?\b
+    resolution|demand generation|revenue operations|RevOps|growth|marketing technology)\b.{0,180}\b(?:[1-9]|1[0-4])\+?\s+years?\b
 - claim_id: quantified_achievements
   claim_text: Drove $51M in pipeline opportunities and $3.4M in closed-won revenue
     through intent data and identity-resolution models; reduced campaign time-to-market
@@ -231,7 +231,7 @@ claims:
   safe_rewrite: Use systems and advisory positioning without stating team size.
   risk_level: high
   approval_match_patterns:
-  - \b(?:team of 6|six-person team)\b
+  - \b(?:team of [1-6]|six-person team|six-person)\b
 - claim_id: budget_ownership
   claim_text: Exact budget ownership is pending user evidence.
   category: leadership_scope
