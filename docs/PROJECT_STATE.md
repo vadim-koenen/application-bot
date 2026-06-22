@@ -49,6 +49,12 @@ attestations must be the user's personal act.
   Deterministic, submit-free: pre-fills only approved answers, leaves every
   REVIEW_REQUIRED answer blank for the human, resolves the role's ATS `.txt`,
   flags non-form (recruiter-email) apply URLs. 6 tests (114 total).
+- **M22** — apply digest: `email_service.send_apply_digest` emails the user one
+  ranked list of ready roles with the apply link + résumé/cover **PDFs attached**.
+  New `send-digest --to … [--live]` CLI (dry-run writes an `.eml`; live needs
+  SMTP). Self-notification — not behind the employer apply-approval phrase. The
+  existing gated `send_email_applications` remains the auto-submit-where-possible
+  (email-apply) path. 5 tests (129 total).
 - **M21** — PDF artifacts: `application_bot/pdf.py` renders the tailored ATS
   résumé + claim-safe cover letter to ATS-parseable PDFs via fpdf2 (optional dep,
   lazy-imported; text ASCII-normalized). New `make-pdf --job-id` CLI. 3 tests (124 total).

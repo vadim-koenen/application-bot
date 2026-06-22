@@ -3,10 +3,12 @@ from __future__ import annotations
 from datetime import date
 from email.message import EmailMessage
 from email.policy import default
+from html import escape as _esc
 import json
 import os
 from pathlib import Path
-from typing import Any
+import smtplib
+from typing import Any, Callable
 
 from application_bot.adapters.email_to_apply import EmailToApplyAdapter
 from application_bot.database import Database
@@ -29,6 +31,124 @@ def _subject_and_body(packet: dict[str, Any], title: str) -> tuple[str, str]:
         while lines and not lines[0].strip():
             lines.pop(0)
     return subject, "\n".join(lines).strip()
+
+
+def _digest_bodies(items: list[dict[str, Any]]) -> tuple[str, str]:
+    plain = ["Your tailored job apply digest.", ""]
+    rows = []
+    for item in items:
+        link = str(item.get("apply_url") or "")
+        score = item.get("score")
+        plain.append(f"[{score}] {item['company']} - {item['title']}")
+        plain.append(f"    Apply: {link or 'see attached / recruiter contact'}")
+        plain.append("")
+        cell = (
+            f'<a href="{_esc(link)}">Apply now</a>'
+            if link.lower().startswith("http")
+            else _esc(link or "see attached / recruiter contact")
+        )
+        rows.append(
+            f'<tr style="border-bottom:1px solid #e5e7eb">'
+            f"<td><b>{_esc(str(score))}</b></td>"
+            f"<td><b>{_esc(item['company'])}</b><br>"
+            f'<span style="color:#6b7280;font-size:13px">{_esc(item["title"])}</span></td>'
+            f'<td style="font-size:14px">{cell}</td></tr>'
+        )
+    html = (
+        '<div style="font-family:Arial,sans-serif;font-size:14px;max-width:720px">'
+        "<h2>Your job apply digest</h2>"
+        "<p>Tailored résumé + cover letter for each role are attached as PDFs. "
+        "Click Apply, attach the matching PDFs, submit, then mark it applied.</p>"
+        '<table cellpadding=8 style="border-collapse:collapse;width:100%">'
+        + "".join(rows)
+        + "</table></div>"
+    )
+    return "\n".join(plain), html
+
+
+def build_digest_message(
+    items: list[dict[str, Any]],
+    *,
+    to: str,
+    from_email: str,
+) -> EmailMessage:
+    """One email to the user: a ranked apply list with résumé/cover PDFs attached."""
+    message = EmailMessage(policy=default)
+    message["From"] = from_email
+    message["To"] = to
+    message["Subject"] = (
+        f"Your job apply digest — {len(items)} role(s) — {date.today().isoformat()}"
+    )
+    plain, html = _digest_bodies(items)
+    message.set_content(plain)
+    message.add_alternative(html, subtype="html")
+    for item in items:
+        for path in item.get("attachments", []):
+            candidate = Path(path)
+            if not candidate.exists():
+                continue
+            message.add_attachment(
+                candidate.read_bytes(),
+                maintype="application",
+                subtype="pdf",
+                filename=candidate.name,
+            )
+    return message
+
+
+def _smtp_send(message: EmailMessage) -> None:  # pragma: no cover - network
+    with smtplib.SMTP(os.environ["SMTP_HOST"], int(os.environ["SMTP_PORT"])) as smtp:
+        smtp.starttls()
+        smtp.login(os.environ["SMTP_USERNAME"], os.environ["SMTP_PASSWORD"])
+        smtp.send_message(message)
+
+
+def send_apply_digest(
+    items: list[dict[str, Any]],
+    *,
+    to: str,
+    output_root: str | Path,
+    from_email: str | None = None,
+    live: bool = False,
+    sender: Callable[[EmailMessage], None] | None = None,
+) -> dict[str, Any]:
+    """Email the user a digest of ready roles (link + PDFs).
+
+    Dry-run (default) writes a `.eml` preview and never needs SMTP. Live send
+    requires SMTP_* env vars. This emails the user (self-notification), so it is
+    deliberately not behind the apply-approval phrase that guards employer sends.
+    """
+    if not to:
+        return {"mode": "NO_RECIPIENT", "roles": len(items)}
+    if not items:
+        return {"mode": "EMPTY", "roles": 0}
+    from_email = from_email or os.getenv("FROM_EMAIL") or "digest@application-bot.local"
+    message = build_digest_message(items, to=to, from_email=from_email)
+    attachments = sum(len(item.get("attachments", [])) for item in items)
+
+    if not live:
+        folder = Path(output_root) / "digests" / date.today().isoformat()
+        folder.mkdir(parents=True, exist_ok=True)
+        path = folder / f"digest_{len(items)}roles.eml"
+        path.write_bytes(message.as_bytes())
+        return {
+            "mode": "DRY_RUN",
+            "roles": len(items),
+            "attachments": attachments,
+            "preview_path": str(path),
+            "recipient": to,
+        }
+
+    required = ["SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "FROM_EMAIL"]
+    missing = [name for name in required if not os.getenv(name)]
+    if missing:
+        return {
+            "mode": "LIVE_BLOCKED",
+            "roles": len(items),
+            "reason": f"Missing SMTP config: {', '.join(missing)}",
+        }
+    (sender or _smtp_send)(message)
+    return {"mode": "LIVE", "roles": len(items), "attachments": attachments, "sent": True, "recipient": to}
 
 
 def queue_email_applications(
