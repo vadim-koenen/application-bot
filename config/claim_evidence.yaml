@@ -401,8 +401,9 @@ claims:
   category: work_authorization
   approval_status: APPROVED_FROM_USER_CONTEXT
   evidence_source: user_context
-  evidence_detail: Vadim explicitly confirmed US work authorization in the M15
-    first-email handoff (2026-06-22). Use only when an application or email asks.
+  evidence_detail: Vadim confirmed he is a US citizen and legally authorized to
+    work in the United States (2026-06-22). Use only when an application or email
+    asks. State citizenship only if the application specifically asks.
   allowed_contexts:
   - claim_gap
   - approval_pack
@@ -413,7 +414,7 @@ claims:
   requires_user_approval: false
   last_verified_at: '2026-06-22'
   safe_rewrite: Authorized to work in the United States.
-  risk_level: medium
+  risk_level: low
 - claim_id: sponsorship
   claim_text: Does not require visa sponsorship.
   category: work_authorization

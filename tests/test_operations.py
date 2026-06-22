@@ -172,6 +172,38 @@ def test_scan_relevance_demotes_off_lane_titles():
     )
 
 
+def _scored(title: str, description: str = "") -> int:
+    config = deepcopy(DEFAULT_CONFIG)
+    job = Job(
+        external_id=title,
+        source="manual_json",
+        source_url="",
+        apply_url="",
+        company="Acme",
+        title=title,
+        location="Remote - United States",
+        remote_type="remote",
+        description=description or "Own revenue operations and GTM systems.",
+    )
+    return score_job(job, config).score
+
+
+def test_systems_lane_manager_titles_are_not_rejected():
+    # A systems/ops function in the title keeps a Manager/Lead role in-lane,
+    # scoring it well above a generic rejected Manager title.
+    systems_manager = _scored("GTM Systems Manager")
+    revops_manager = _scored("Revenue Operations Manager")
+    martech_lead = _scored("Martech Enablement Operations Lead")
+    generic_manager = _scored(
+        "Social Media Manager", description="Own brand social content."
+    )
+    assert systems_manager > generic_manager
+    assert revops_manager > generic_manager
+    assert martech_lead > generic_manager
+    # Still below a true Director-level in-lane role.
+    assert _scored("Director, Marketing Operations") > systems_manager
+
+
 def make_email_job() -> Job:
     return Job(
         external_id="email-1",

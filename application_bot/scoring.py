@@ -52,9 +52,24 @@ def score_job(job: Job, config: dict[str, Any]) -> ScoreResult:
     if ("account executive" in title or "sales executive" in title) and "executive" in target_titles:
         target_titles.remove("executive")
     reject_titles = _contains_any(title, config.get("reject_titles", []))
+    # A "Manager"/"Lead"-titled role is still in-lane when its title names a
+    # systems/operations function Vadim owns (RevOps, GTM systems, MarTech,
+    # marketing operations, marketing data). Score it below Director but well
+    # above the generic reject floor so strong skill-fit roles are reviewed.
+    systems_lane_title = _contains_any(title, config.get("systems_lane_titles", []))
+    systems_lane_function = _contains_any(
+        title, config.get("systems_lane_functions", [])
+    )
+    is_systems_lane = bool(systems_lane_title and systems_lane_function)
     if target_titles:
         dimensions["seniority"] = 20
         reasons.append(f"Target seniority matched: {', '.join(target_titles[:3])}")
+    elif is_systems_lane:
+        dimensions["seniority"] = int(config.get("systems_lane_points", 12))
+        reasons.append(
+            "In-lane systems/operations role below Director "
+            f"({', '.join(systems_lane_function[:2])}); review level and scope."
+        )
     elif reject_titles:
         dimensions["seniority"] = -25
         risk_flags.append(f"Wrong-level title: {', '.join(reject_titles[:3])}")

@@ -13,6 +13,23 @@ reject_titles:
   - associate
   - manager
 
+# A "Manager"/"Lead" title is in-lane when paired with a systems/ops function
+# Vadim owns. These roles score below Director but above the reject floor.
+systems_lane_titles:
+  - manager
+  - lead
+systems_lane_functions:
+  - systems
+  - operations
+  - revops
+  - revenue operations
+  - marketing operations
+  - marketing technology
+  - martech
+  - gtm systems
+  - marketing data
+systems_lane_points: 12
+
 target_keywords:
   - growth marketing
   - demand generation
