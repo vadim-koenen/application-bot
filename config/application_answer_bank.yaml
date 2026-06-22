@@ -28,13 +28,13 @@ answers:
     claim_id: compensation
     value: REVIEW_REQUIRED — confirm against the specific role range.
   work_authorization:
-    status: PENDING_USER_APPROVAL
+    status: APPROVED
     claim_id: work_authorization
-    value: PENDING_USER_APPROVAL — answer personally.
+    value: Authorized to work in the United States.
   sponsorship:
-    status: PENDING_USER_APPROVAL
+    status: APPROVED
     claim_id: sponsorship
-    value: PENDING_USER_APPROVAL — answer personally.
+    value: Does not require visa sponsorship.
   background_check:
     status: REVIEW_REQUIRED
     claim_id: legal_sensitive

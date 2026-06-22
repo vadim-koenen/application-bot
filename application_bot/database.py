@@ -6,7 +6,13 @@ from pathlib import Path
 import sqlite3
 from typing import Any, Iterator
 
-from application_bot.models import EmailQueueItem, Job, ScoreResult, utc_now
+from application_bot.models import (
+    EmailQueueItem,
+    EmailQueueStatus,
+    Job,
+    ScoreResult,
+    utc_now,
+)
 
 
 SCHEMA = """
@@ -771,6 +777,20 @@ class Database:
             "email_queue": {
                 row["status"]: int(row["count"]) for row in email_queue
             },
+            "email_ready_manual_review": sum(
+                int(row["count"])
+                for row in email_queue
+                if row["status"]
+                in {
+                    str(EmailQueueStatus.QUEUED),
+                    str(EmailQueueStatus.PREVIEW_GENERATED),
+                }
+            ),
+            "email_previews_generated": sum(
+                int(row["count"])
+                for row in email_queue
+                if row["status"] == str(EmailQueueStatus.PREVIEW_GENERATED)
+            ),
             "confirmations": {
                 row["classification"]: int(row["count"]) for row in confirmations
             },

@@ -89,10 +89,14 @@ def set_claim_pending(config: dict, claim_id: str) -> None:
 def test_claim_evidence_inventory_loads_and_counts():
     evidence = load_claim_evidence("config/claim_evidence.yaml")
     result = list_claims(evidence)
-    assert approved_claim_count(result["counts"]) == 16
+    # 16 resume/website claims + work_authorization + sponsorship, the two
+    # binary answers Vadim confirmed in the M15 first-email handoff.
+    assert approved_claim_count(result["counts"]) == 18
     assert result["counts"]["APPROVED_FROM_RESUME"] >= 1
     assert result["counts"]["APPROVED_FROM_WEBSITE"] >= 1
+    assert result["counts"]["APPROVED_FROM_USER_CONTEXT"] >= 1
     assert result["counts"]["PENDING_USER_APPROVAL"] >= 1
+    # compensation and legal_sensitive must stay locked to manual review.
     assert result["counts"]["DO_NOT_USE"] >= 1
     assert all("allowed_contexts" in claim for claim in result["claims"])
 
@@ -106,7 +110,7 @@ def test_resume_and_website_approval_statuses_are_counted(tmp_path):
     counts = claim_counts(load_claim_evidence(config["claim_evidence"]))
     assert counts["APPROVED_FROM_RESUME"] >= 1
     assert counts["APPROVED_FROM_WEBSITE"] >= 1
-    assert approved_claim_count(counts) == 16
+    assert approved_claim_count(counts) == 18
 
 
 def test_approved_claim_is_used_and_pending_claim_is_not(tmp_path):
@@ -154,9 +158,12 @@ def test_rejected_and_do_not_use_claims_are_never_answered(tmp_path):
         load_answer_bank(config["application_answer_bank"]),
         evidence,
     )
-    assert answers["Work authorization"].startswith("PENDING_USER_APPROVAL")
-    assert answers["Sponsorship"].startswith("PENDING_USER_APPROVAL")
+    # work_authorization and sponsorship are user-confirmed binary answers.
+    assert answers["Work authorization"] == "Authorized to work in the United States."
+    assert answers["Sponsorship"] == "Does not require visa sponsorship."
+    # Legal/background-sensitive answers still require personal review.
     assert answers["Background check"].startswith("REVIEW_REQUIRED")
+    assert answers["Compensation expectations"].startswith("REVIEW_REQUIRED")
 
 
 def test_rejected_positioning_is_withheld_from_packet_text(tmp_path):
@@ -502,8 +509,11 @@ def test_pending_tenure_still_blocks_fifteen_year_requirement(tmp_path):
 def test_answer_bank_loads_with_sensitive_review_rules():
     bank = load_answer_bank("config/application_answer_bank.yaml")
     assert bank["answers"]["website"]["status"] == "APPROVED"
-    assert bank["answers"]["work_authorization"]["status"] == "PENDING_USER_APPROVAL"
-    assert bank["answers"]["sponsorship"]["status"] == "PENDING_USER_APPROVAL"
+    # work_authorization and sponsorship are user-confirmed (M15 handoff).
+    assert bank["answers"]["work_authorization"]["status"] == "APPROVED"
+    assert bank["answers"]["sponsorship"]["status"] == "APPROVED"
+    # Compensation and legal-sensitive answers stay locked to manual review.
+    assert bank["answers"]["salary_expectations"]["status"] == "REVIEW_REQUIRED"
     assert bank["answers"]["legal_sensitive"]["status"] == "REVIEW_REQUIRED"
     assert bank["answers"]["unknown_required_question"]["status"] == "REVIEW_REQUIRED"
 

@@ -313,6 +313,9 @@ def run_dry_pipeline(
         "no_packet_reason_counts": no_packet_reason_counts,
         "packet_paths": packet_paths,
         "email_queue": queue_result,
+        "email_ready_manual_review": (
+            queue_result["queued"] + queue_result["already_queued"]
+        ),
         "email_previews_generated": email_result["email_previews_generated"],
         "email_preview_paths": email_result["preview_paths"],
         "applications_submitted": 0,

@@ -397,39 +397,42 @@ claims:
   safe_rewrite: REVIEW_REQUIRED — confirm expectations for the specific role.
   risk_level: high
 - claim_id: work_authorization
-  claim_text: Work authorization status is pending user approval.
+  claim_text: Authorized to work in the United States.
   category: work_authorization
-  approval_status: DO_NOT_USE
-  evidence_source: safety_policy
-  evidence_detail: Work authorization has not been supplied.
+  approval_status: APPROVED_FROM_USER_CONTEXT
+  evidence_source: user_context
+  evidence_detail: Vadim explicitly confirmed US work authorization in the M15
+    first-email handoff (2026-06-22). Use only when an application or email asks.
   allowed_contexts:
   - claim_gap
   - approval_pack
+  - application_answer
   prohibited_contexts:
   - packet_text
-  - application_answer
   confidence: high
-  requires_user_approval: true
-  last_verified_at: '2026-06-20'
-  safe_rewrite: PENDING_USER_APPROVAL — answer personally.
-  risk_level: critical
+  requires_user_approval: false
+  last_verified_at: '2026-06-22'
+  safe_rewrite: Authorized to work in the United States.
+  risk_level: medium
 - claim_id: sponsorship
-  claim_text: Sponsorship requirement is pending user approval.
+  claim_text: Does not require visa sponsorship.
   category: work_authorization
-  approval_status: DO_NOT_USE
-  evidence_source: safety_policy
-  evidence_detail: Sponsorship status has not been supplied.
+  approval_status: APPROVED_FROM_USER_CONTEXT
+  evidence_source: user_context
+  evidence_detail: Vadim explicitly confirmed he does not require visa sponsorship
+    in the M15 first-email handoff (2026-06-22). Use only when an application or
+    email asks.
   allowed_contexts:
   - claim_gap
   - approval_pack
+  - application_answer
   prohibited_contexts:
   - packet_text
-  - application_answer
   confidence: high
-  requires_user_approval: true
-  last_verified_at: '2026-06-20'
-  safe_rewrite: PENDING_USER_APPROVAL — answer personally.
-  risk_level: critical
+  requires_user_approval: false
+  last_verified_at: '2026-06-22'
+  safe_rewrite: Does not require visa sponsorship.
+  risk_level: medium
 - claim_id: legal_sensitive
   claim_text: Legal and background-sensitive answers require personal review.
   category: legal_sensitive

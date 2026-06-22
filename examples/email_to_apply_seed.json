@@ -1,0 +1,24 @@
+{
+  "_comment": "REVIEW-ONLY manually seeded email-to-apply job (M15 first-email lane). The recipient uses the IANA-reserved, non-deliverable example.com domain so no real employer can ever be contacted, even accidentally. Replace with a real posting + real apply email only when Vadim provides one and explicitly approves a send.",
+  "jobs": [
+    {
+      "external_id": "seed-email-to-apply-marketing-ops",
+      "source": "email_to_apply",
+      "company": "Example SaaS Co (REVIEW-ONLY SEED)",
+      "title": "Director, Marketing Operations",
+      "department": "Revenue",
+      "location": "Remote - US",
+      "remote_type": "remote",
+      "salary_min": 165000,
+      "salary_max": 195000,
+      "currency": "USD",
+      "apply_url": "mailto:talent@example.com",
+      "source_url": "mailto:talent@example.com",
+      "recipient": "talent@example.com",
+      "posted_at": "2026-06-18",
+      "description": "We are hiring a Director, Marketing Operations to own our marketing operations, revenue operations, and GTM systems. This role leads marketing technology and marketing automation strategy across the go-to-market organization, partnering closely on GTM strategy and lifecycle operations.",
+      "requirements": "Deep command of marketing operations, revenue operations, and marketing technology. Track record building marketing systems and lifecycle operations that support go-to-market strategy. Comfortable owning the marketing automation roadmap.",
+      "responsibilities": "Own the marketing operations and revenue systems function. Architect GTM systems and the martech stack. Drive marketing automation, lifecycle operations, and segmentation strategy in partnership with the leadership team."
+    }
+  ]
+}
