@@ -102,6 +102,7 @@ def command_scan(args: argparse.Namespace, config: dict[str, Any]) -> int:
             limit=args.limit,
             source_filter=args.source,
             selection_config=config,
+            posted_within_hours=args.posted_within_hours,
         )
         result["dry_run"] = True
         _print(result)
@@ -271,6 +272,7 @@ def command_run_dry_pipeline(
         output_root=args.out or config["export_path"],
         config=config,
         limit=args.limit,
+        posted_within_hours=args.posted_within_hours,
     )
     _print(result)
     return 0
@@ -507,6 +509,13 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--registry", help="YAML company registry for ATS sources")
     scan.add_argument("--dry-run", action="store_true", help="Explicit safe scan mode")
     scan.add_argument("--limit", type=int, default=25)
+    scan.add_argument(
+        "--posted-within-hours",
+        dest="posted_within_hours",
+        type=int,
+        default=None,
+        help="Only keep roles posted within the last N hours (e.g. 24)",
+    )
     scan.add_argument("--db")
     scan.set_defaults(handler=command_scan)
 
@@ -543,6 +552,13 @@ def build_parser() -> argparse.ArgumentParser:
     pipeline.add_argument("--db")
     pipeline.add_argument("--out")
     pipeline.add_argument("--limit", type=int, default=25)
+    pipeline.add_argument(
+        "--posted-within-hours",
+        dest="posted_within_hours",
+        type=int,
+        default=None,
+        help="Only keep roles posted within the last N hours (e.g. 24)",
+    )
     pipeline.set_defaults(handler=command_run_dry_pipeline)
 
     queue_email = subparsers.add_parser(

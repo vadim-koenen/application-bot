@@ -49,6 +49,11 @@ attestations must be the user's personal act.
   Deterministic, submit-free: pre-fills only approved answers, leaves every
   REVIEW_REQUIRED answer blank for the human, resolves the role's ATS `.txt`,
   flags non-form (recruiter-email) apply URLs. 6 tests (114 total).
+- **M20** — last-24h discovery: `scan_registry(posted_within_hours=N)` keeps only
+  roles posted within N hours (defensive date parse handles Greenhouse/Ashby ISO
+  + Lever epoch-millis; undated roles excluded + counted). `--posted-within-hours`
+  on `scan`/`run-dry-pipeline`. Registry expanded to 22 companies (6 enabled, 16
+  candidates to validate). First phase of the desktop "auto-apply" app. 4 tests (121 total).
 - **M19** — scorer fix: the "generic sales title" mismatch penalty is offset when
   a Sales-led title also shows strong in-lane function fit (>= strong_function_points)
   at a target (director) seniority — it becomes an advisory flag, not a -30 hit.

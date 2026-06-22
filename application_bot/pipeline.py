@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -94,6 +95,46 @@ def _job_relevance_score(job: Any, config: dict[str, Any] | None) -> int:
     )
 
 
+def parse_posted_at(value: Any) -> datetime | None:
+    """Parse an adapter's posted_at into a tz-aware UTC datetime, or None.
+
+    Adapters disagree on format: Greenhouse ``updated_at`` and Ashby
+    ``publishedAt`` are ISO strings; Lever ``createdAt`` is a Unix epoch in
+    milliseconds. Anything unparseable returns None (treated as "date unknown").
+    """
+    if value is None or value == "":
+        return None
+    # Numeric epoch (Lever): seconds or milliseconds.
+    if isinstance(value, (int, float)) or (
+        isinstance(value, str) and value.strip().isdigit()
+    ):
+        epoch = float(value)
+        if epoch > 1e11:  # milliseconds
+            epoch /= 1000.0
+        try:
+            return datetime.fromtimestamp(epoch, tz=UTC)
+        except (OverflowError, OSError, ValueError):
+            return None
+    try:
+        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+def is_fresh(value: Any, hours: int, *, now: datetime | None = None) -> bool | None:
+    """True if posted_at is within the last ``hours``; None if date unknown."""
+    posted = parse_posted_at(value)
+    if posted is None:
+        return None
+    now = now or datetime.now(UTC)
+    return (now - posted) <= timedelta(hours=hours) and posted <= now + timedelta(
+        hours=1
+    )
+
+
 def scan_registry(
     database: Database,
     registry_path: str | Path,
@@ -102,6 +143,7 @@ def scan_registry(
     source_filter: str | None = None,
     adapters: dict[str, Any] | None = None,
     selection_config: dict[str, Any] | None = None,
+    posted_within_hours: int | None = None,
 ) -> dict[str, Any]:
     registry = load_company_registry(registry_path)
     adapter_map = adapters or ATS_ADAPTERS
@@ -109,7 +151,10 @@ def scan_registry(
     jobs_inserted = 0
     attempted = 0
     succeeded = 0
+    dropped_stale = 0
+    dropped_undated = 0
     sources: list[dict[str, Any]] = []
+    now = datetime.now(UTC)
 
     for company in registry:
         database.register_company(company)
@@ -134,6 +179,17 @@ def scan_registry(
             factory = adapter_map[ats]
             adapter = _new_adapter(factory)
             jobs = adapter.discover_jobs(**_adapter_kwargs(company))
+            if posted_within_hours is not None:
+                fresh: list[Any] = []
+                for job in jobs:
+                    verdict = is_fresh(job.posted_at, posted_within_hours, now=now)
+                    if verdict is True:
+                        fresh.append(job)
+                    elif verdict is None:
+                        dropped_undated += 1
+                    else:
+                        dropped_stale += 1
+                jobs = fresh
             remaining = max(0, limit - jobs_seen) if limit >= 0 else len(jobs)
             per_source_limit = int(company.get("scan_limit") or remaining)
             selected_limit = min(remaining, per_source_limit)
@@ -194,6 +250,9 @@ def scan_registry(
         "sources": sources,
         "real_network_scan": succeeded > 0,
         "network_status": network_status,
+        "posted_within_hours": posted_within_hours,
+        "dropped_stale": dropped_stale,
+        "dropped_undated": dropped_undated,
     }
 
 
@@ -205,6 +264,7 @@ def run_dry_pipeline(
     config: dict[str, Any],
     limit: int = 25,
     adapters: dict[str, Any] | None = None,
+    posted_within_hours: int | None = None,
 ) -> dict[str, Any]:
     runtime_config = deepcopy(config)
     runtime_config["dry_run"] = True
@@ -219,6 +279,7 @@ def run_dry_pipeline(
         limit=limit,
         adapters=adapters,
         selection_config=runtime_config,
+        posted_within_hours=posted_within_hours,
     )
 
     scored = 0
