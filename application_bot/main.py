@@ -6,6 +6,11 @@ from pathlib import Path
 import sys
 from typing import Any
 
+from application_bot.assisted_apply import (
+    build_fill_plan,
+    fill_plan_to_dict,
+    render_fill_plan_markdown,
+)
 from application_bot.adapters import (
     AshbyAdapter,
     EmailToApplyAdapter,
@@ -439,6 +444,36 @@ def command_ats_resume(args: argparse.Namespace, config: dict[str, Any]) -> int:
     return 0
 
 
+def command_assisted_apply(
+    args: argparse.Namespace,
+    config: dict[str, Any],
+) -> int:
+    database = _db(args, config)
+    job = database.get_job(args.job_id)
+    if not job:
+        raise ValueError(f"Job {args.job_id} does not exist")
+    packet_row = database.latest_packet(args.job_id)
+    if not packet_row:
+        raise ValueError(
+            f"Job {args.job_id} has no packet yet — run export-packets first."
+        )
+    packet = json.loads(packet_row["packet_json"])
+    export_root = args.out or config["export_path"]
+    plan = build_fill_plan(job, packet, export_root)
+    if args.write:
+        folder = Path(export_root) / "fill_plans"
+        folder.mkdir(parents=True, exist_ok=True)
+        slug = packet_row["export_path"]
+        name = Path(slug).stem or f"job-{args.job_id}"
+        md_path = folder / f"{name}.md"
+        md_path.write_text(render_fill_plan_markdown(plan), encoding="utf-8")
+    payload = fill_plan_to_dict(plan)
+    if args.write:
+        payload["written_to"] = str(md_path)
+    _print(payload)
+    return 0
+
+
 def command_export_review_html(
     args: argparse.Namespace,
     config: dict[str, Any],
@@ -637,6 +672,23 @@ def build_parser() -> argparse.ArgumentParser:
     ats_resume.add_argument("--job-id", type=int)
     ats_resume.add_argument("--resume-master", dest="resume_master")
     ats_resume.set_defaults(handler=command_ats_resume)
+
+    assisted_apply = subparsers.add_parser(
+        "assisted-apply",
+        help=(
+            "Build a submit-free fill plan for one role (approved fields to "
+            "pre-fill, fields left for the human, and the resume to attach)"
+        ),
+    )
+    assisted_apply.add_argument("--job-id", type=int, required=True)
+    assisted_apply.add_argument("--db")
+    assisted_apply.add_argument("--out", help="Export root (default config export_path)")
+    assisted_apply.add_argument(
+        "--write",
+        action="store_true",
+        help="Also write the plan to <out>/fill_plans/<slug>.md",
+    )
+    assisted_apply.set_defaults(handler=command_assisted_apply)
 
     review_html = subparsers.add_parser(
         "export-review-html",

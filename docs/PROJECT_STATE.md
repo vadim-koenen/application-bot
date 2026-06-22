@@ -45,6 +45,10 @@ attestations must be the user's personal act.
 - **M15** — first email-to-apply manual-review lane + approved binary answers (PR #8)
 - **M16** — title gate scores in-lane systems/ops Manager & Lead roles (PR #9)
 - **M17** — ATS resume v2 generator (`ats-resume` CLI) (PR #10)
+- **M18** — assisted-apply fill plan (`assisted-apply` CLI; `application_bot/assisted_apply.py`).
+  Deterministic, submit-free: pre-fills only approved answers, leaves every
+  REVIEW_REQUIRED answer blank for the human, resolves the role's ATS `.txt`,
+  flags non-form (recruiter-email) apply URLs. 6 tests (114 total).
 
 Each stacks on the previous branch. NOTE: the repo has **no `main` branch** yet
 — the default is `feature/application-bot-m1-m5-core` and all milestones stack
@@ -61,6 +65,9 @@ python3 -m application_bot.main report --db <db>
 
 ## Next step
 
-Assisted-apply prototype: drive the user's logged-in browser to fill one real
-posting end-to-end, attach the role's ATS resume `.txt`, stop at Submit. Needs
-one live target URL + user go-ahead.
+The fill-plan core is built (M18). Remaining: the **live browser drive** —
+given one real http(s) ATS posting URL + user go-ahead, use Claude-in-Chrome to
+open the posting, apply the fill plan (`assisted-apply --job-id N`) to the user's
+own logged-in form, attach the role's ATS `.txt`, and **stop at Submit** for the
+human click. Blocker: the 13 ready roles are `manual_json` placeholders with no
+http form URL; a live posting URL must be supplied per role.
