@@ -49,6 +49,9 @@ attestations must be the user's personal act.
   Deterministic, submit-free: pre-fills only approved answers, leaves every
   REVIEW_REQUIRED answer blank for the human, resolves the role's ATS `.txt`,
   flags non-form (recruiter-email) apply URLs. 6 tests (114 total).
+- **M21** — PDF artifacts: `application_bot/pdf.py` renders the tailored ATS
+  résumé + claim-safe cover letter to ATS-parseable PDFs via fpdf2 (optional dep,
+  lazy-imported; text ASCII-normalized). New `make-pdf --job-id` CLI. 3 tests (124 total).
 - **M20** — last-24h discovery: `scan_registry(posted_within_hours=N)` keeps only
   roles posted within N hours (defensive date parse handles Greenhouse/Ashby ISO
   + Lever epoch-millis; undated roles excluded + counted). `--posted-within-hours`

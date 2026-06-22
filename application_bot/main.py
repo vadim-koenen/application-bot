@@ -47,8 +47,13 @@ from application_bot.packets import (
     generate_packet,
     packet_to_dict,
 )
+from application_bot.pdf import export_application_pdfs
 from application_bot.pipeline import refresh_packets, run_dry_pipeline, scan_registry
-from application_bot.resume import export_ats_resume, load_resume_master
+from application_bot.resume import (
+    export_ats_resume,
+    load_resume_master,
+    render_ats_resume_text,
+)
 from application_bot.policy import evaluate_job_submission_policy
 from application_bot.reporting import write_daily_report
 from application_bot.review import (
@@ -446,6 +451,24 @@ def command_ats_resume(args: argparse.Namespace, config: dict[str, Any]) -> int:
     return 0
 
 
+def command_make_pdf(args: argparse.Namespace, config: dict[str, Any]) -> int:
+    database = _db(args, config)
+    job = database.get_job(args.job_id)
+    if not job:
+        raise ValueError(f"Job {args.job_id} does not exist")
+    master = load_resume_master(args.resume_master or config["resume_master"])
+    output_root = args.out or config["export_path"]
+    resume_text = render_ats_resume_text(job, master, config)
+    packet_row = database.latest_packet(args.job_id)
+    if packet_row:
+        cover_letter = json.loads(packet_row["packet_json"]).get("cover_letter", "")
+    else:
+        policy = evaluate_job_submission_policy(job, config)
+        cover_letter = generate_packet(job, config, policy).cover_letter
+    _print(export_application_pdfs(job, resume_text, cover_letter, output_root))
+    return 0
+
+
 def command_assisted_apply(
     args: argparse.Namespace,
     config: dict[str, Any],
@@ -688,6 +711,16 @@ def build_parser() -> argparse.ArgumentParser:
     ats_resume.add_argument("--job-id", type=int)
     ats_resume.add_argument("--resume-master", dest="resume_master")
     ats_resume.set_defaults(handler=command_ats_resume)
+
+    make_pdf = subparsers.add_parser(
+        "make-pdf",
+        help="Render a role's ATS résumé + cover letter to PDF",
+    )
+    make_pdf.add_argument("--job-id", type=int, required=True)
+    make_pdf.add_argument("--db")
+    make_pdf.add_argument("--out")
+    make_pdf.add_argument("--resume-master", dest="resume_master")
+    make_pdf.set_defaults(handler=command_make_pdf)
 
     assisted_apply = subparsers.add_parser(
         "assisted-apply",
