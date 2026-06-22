@@ -91,7 +91,29 @@ def score_job(job: Job, config: dict[str, Any]) -> ScoreResult:
         title, config.get("target_keywords", [])
     )
     pure_sales_title = "sales" in title and not title_target_functions
-    if reject_keywords or off_lane_titles or pure_sales_title:
+    # A "Sales"-led title is only a true mismatch when the role's actual function
+    # fit is weak. When the body shows strong in-lane function fit (RevOps, GTM,
+    # marketing ops) at a target seniority, the title alone shouldn't bury an
+    # otherwise on-lane role — keep it as an advisory flag instead of the full
+    # penalty. Hard signals (reject_keywords, off_lane_titles) are never softened.
+    strong_function = int(
+        config.get("packet_thresholds", {}).get("strong_function_points", 10)
+    )
+    sales_title_offset = (
+        pure_sales_title
+        and not reject_keywords
+        and not off_lane_titles
+        and dimensions["function_fit"] >= strong_function
+        and dimensions["seniority"] > 0
+    )
+    if sales_title_offset:
+        dimensions["role_mismatch"] = 0
+        risk_flags.append(
+            "Sales-led title offset by strong in-lane function fit and target "
+            "seniority; confirm scope is systems/operations, not quota-carrying "
+            "sales."
+        )
+    elif reject_keywords or off_lane_titles or pure_sales_title:
         dimensions["role_mismatch"] = int(
             config.get("role_mismatch_penalty", -18)
         )

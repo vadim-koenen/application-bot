@@ -49,6 +49,12 @@ attestations must be the user's personal act.
   Deterministic, submit-free: pre-fills only approved answers, leaves every
   REVIEW_REQUIRED answer blank for the human, resolves the role's ATS `.txt`,
   flags non-form (recruiter-email) apply URLs. 6 tests (114 total).
+- **M19** — scorer fix: the "generic sales title" mismatch penalty is offset when
+  a Sales-led title also shows strong in-lane function fit (>= strong_function_points)
+  at a target (director) seniority — it becomes an advisory flag, not a -30 hit.
+  Hard reject/off-lane signals are never softened. Fixed a real false negative
+  (a Director, Sales Enablement & Marketing role: 35/NOT_WORTH_TIME -> 65/GOOD_FIT);
+  no change to the 13 prior ready roles. 3 tests (117 total).
 
 Each stacks on the previous branch. NOTE: the repo has **no `main` branch** yet
 — the default is `feature/application-bot-m1-m5-core` and all milestones stack
