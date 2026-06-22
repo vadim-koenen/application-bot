@@ -110,6 +110,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     "export_path": "exports",
     "live_company_registry": "config/live_company_registry.yaml",
     "resume_claim_inventory": "config/resume_claim_inventory.yaml",
+    "resume_master": "data/private/resume_master.yaml",
     "claim_evidence": "config/claim_evidence.yaml",
     "application_answer_bank": "config/application_answer_bank.yaml",
     "pipeline_limit": 25,

@@ -43,6 +43,7 @@ from application_bot.packets import (
     packet_to_dict,
 )
 from application_bot.pipeline import refresh_packets, run_dry_pipeline, scan_registry
+from application_bot.resume import export_ats_resume, load_resume_master
 from application_bot.policy import evaluate_job_submission_policy
 from application_bot.reporting import write_daily_report
 from application_bot.review import (
@@ -418,6 +419,26 @@ def command_refresh_packets(
     return 0
 
 
+def command_ats_resume(args: argparse.Namespace, config: dict[str, Any]) -> int:
+    database = _db(args, config)
+    master = load_resume_master(args.resume_master or config["resume_master"])
+    output_root = args.out or config["export_path"]
+    if args.job_id is not None:
+        job = database.get_job(args.job_id)
+        if not job:
+            raise ValueError(f"Job {args.job_id} does not exist")
+        jobs = [job]
+    else:
+        jobs = [
+            job
+            for job in database.list_jobs(scored_only=True)
+            if str(job.packet_status) == "PACKET_READY"
+        ]
+    results = [export_ats_resume(job, master, config, output_root) for job in jobs]
+    _print({"ats_resumes_generated": len(results), "resumes": results})
+    return 0
+
+
 def command_export_review_html(
     args: argparse.Namespace,
     config: dict[str, Any],
@@ -606,6 +627,16 @@ def build_parser() -> argparse.ArgumentParser:
     refresh.add_argument("--db")
     refresh.add_argument("--out", required=True)
     refresh.set_defaults(handler=command_refresh_packets)
+
+    ats_resume = subparsers.add_parser(
+        "ats-resume",
+        help="Generate ATS-tuned resumes for ready packets (or one --job-id)",
+    )
+    ats_resume.add_argument("--db")
+    ats_resume.add_argument("--out")
+    ats_resume.add_argument("--job-id", type=int)
+    ats_resume.add_argument("--resume-master", dest="resume_master")
+    ats_resume.set_defaults(handler=command_ats_resume)
 
     review_html = subparsers.add_parser(
         "export-review-html",
