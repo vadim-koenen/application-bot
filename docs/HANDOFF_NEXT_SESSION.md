@@ -21,7 +21,7 @@ Read this first. It is self-contained; you should not need the prior chat.
 ## 1. What this project is now
 
 A **desktop job-search app** (pywebview), mirroring the operator's investment bot
-pattern. Pipeline: **discover (last 24h) → score → tailor ATS résumé + cover
+pattern. Pipeline: **discover (last 72h) → score → tailor ATS résumé + cover
 letter (PDF) → apply (human, on the company form) → track**. It is the operator's
 (Vadim Koenen) personal RevOps/marketing-ops/GTM-systems job search.
 
@@ -54,7 +54,7 @@ Launch: `./run_app.sh` (window) · `./run_app.sh --cli` (headless) ·
   (single-file HTML/JS UI; tabs New/Outstanding/Applied/Settings; 15s
   auto-refresh + Refresh button).
 - **Backend package `application_bot/`:** `pipeline.py` (scan_registry +
-  `discover_adzuna` + `discover_jsearch`; 24h `posted_within_hours` filter),
+  `discover_adzuna` + `discover_jsearch`; `posted_within_hours` 72h filter),
   `scoring.py` (fit score + **off-lane** + **remote-or-DFW geo gate**),
   `resume.py` (ATS résumé), `packets.py` (cover letter / answers),
   `pdf.py` (fpdf2), `database.py` (SQLite CRM; JobStatus incl. APPLIED),
@@ -77,7 +77,8 @@ the Adzuna keys, `RAPIDAPI_KEY`/`RAPIDAPI_JSEARCH_HOST`, and (unused) SMTP field
 
 ## 5. Filters (current behavior)
 
-- **24h freshness** on discovery (`posted_within_hours=24`).
+- **72h freshness** on discovery (config `discovery_window_hours: 72`,
+  `JobAppAPI.window_hours`; was 24h). New tab now shows ~8 vs ~2.
 - **Geo gate (hard):** exclude only **confirmed** onsite/hybrid-non-DFW roles;
   remote, DFW metroplex (suburbs + Tarrant/Collin/Rockwall/Kaufman counties), and
   unknown-location roles pass. `require_remote_or_dfw` toggles it.
@@ -97,7 +98,63 @@ the Adzuna keys, `RAPIDAPI_KEY`/`RAPIDAPI_JSEARCH_HOST`, and (unused) SMTP field
   vadimkoenen@proton.me; phone). Used to tailor PDFs.
 - `exports/vadim_pipeline/` — generated packets, ATS résumés, PDFs.
 
-## 7. NEXT TASK — redesign the app UX to mirror the 6sense sales dashboard
+## 7. PRIORITY NEXT TASK — close the discovery coverage gap
+
+**The operator saw a "perfect" job on LinkedIn that the app did NOT capture.**
+This is the #1 problem to solve. Root cause: discovery = 27 ATS boards (only
+those companies) + Adzuna (broad but misses/laggy on LinkedIn) — and **JSearch
+(the one that indexes LinkedIn/Indeed/ZipRecruiter via Google-for-Jobs) is not
+working** because the operator's RapidAPI subscription lacks the `/search`
+endpoint (only `/job-details`). So LinkedIn-posted roles, and roles at companies
+not in the registry, slip through.
+
+Fix paths (do these next, in order):
+1. **Get JSearch working** — the clean way to catch LinkedIn/Indeed/Zip. The
+   operator wants to **stay on a free tier** (fine: canonical JSearch by OpenWeb
+   Ninja has a free Basic plan WITH `/search`). Action: confirm the operator
+   subscribed to that listing, put the key in `.env` `RAPIDAPI_KEY=`, then
+   `scan-jsearch` should return jobs. The adapter (`adapters/jsearch.py`) + wiring
+   are built and tested — only the subscription/key is the blocker.
+   - Make the JSearch **search endpoint path configurable** (env, default
+     `/search`) so a different RapidAPI jobs API can be pointed in without code.
+2. **One-off capture** — add an "Add this job" path so when the operator sees a
+   role anywhere (LinkedIn etc.), they paste the URL/title/company and it's
+   ingested (reuse the review-queue adapters; ToS-clean since human-initiated).
+   Fetching arbitrary LinkedIn/Indeed URLs server-side is scraping — don't; have
+   the operator paste the job details, or fetch only ATS/company-site URLs.
+3. **Grow the registry** — add boards of companies the operator targets.
+
+Honest framing for the operator: the only legitimate way to catch arbitrary
+LinkedIn jobs is an aggregator API (JSearch); we do not scrape LinkedIn.
+
+## 8. SECONDARY (optional) — 6sense-style dashboard redesign
+
+The operator likes the **6sense sales dashboard** UX and said "configure if you
+think it makes sense; if it overcomplicates, disregard." Use judgment — do it
+only after coverage is solid, and keep it simple. Reference screenshot the
+operator shared (6sense "Dashboards › CRM Accounts"):
+- **Left sidebar filters**: Filter List / Saved filters; a **CRM** group (User
+  type, Account type, Latest opportunity status, Salesforce fields) and a
+  **6sense company info** group (**Temperature, Buying stage, Reach**).
+- **Segment chips** across the top with counts: **Hot New (0) · Hot (1) ·
+  Warm (13) · Cold (29)**.
+- **Account list**: avatar + name + country, a **6QA Temp** column (a colored
+  **W/Warm** badge), and a **Sales Activities** column (e.g. "47 · ✉ · 1 day ago").
+
+Adapt to the job search (don't copy literally):
+- Sidebar filters → Source (boards/Adzuna/JSearch), Score/fit grade, Location
+  (remote/DFW), Recency.
+- **Temperature → fit grade**: Hot/Warm/Cold from the 0–100 score (e.g. ≥80 Hot,
+  65–79 Warm, 45–64 Cold) as colored badges (the 6QA-Temp equivalent).
+- **Buying stage → pipeline stage**: New → Outstanding → Applied → Responded.
+- Segment chips → counts per stage/grade. List → role + company + fit badge +
+  posted-recency + source, with a slide-over detail panel (JD, fit reasons,
+  Apply →, Résumé/Cover PDF, Mark applied).
+- Keep it a single offline `app_ui/index.html` (inline CSS/JS; no Node/libs);
+  reuse `JobAppAPI`, add methods only as needed (e.g. analytics summary, a
+  "responded" status). The full original next-task spec is below.
+
+### (original 6sense redesign spec)
 
 The operator wants the app's look/feel to **mirror the 6sense (ABM/revenue)
 sales dashboard, adapted for a personal job search.** Current UI is a plain
@@ -130,7 +187,7 @@ Verification: `./run_app.sh` opens the redesigned window populated from the real
 pipeline (point at `data/private/vadim_pipeline.sqlite`); `python3 -m pytest -q`
 stays green.
 
-## 8. Key commands
+## 9. Key commands
 
 ```bash
 cd "/Users/vadimkoenen/Documents/Application Agent"
