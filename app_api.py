@@ -44,6 +44,7 @@ class JobAppAPI:
         self.db_path = str(db_path or self.config["database_path"])
         self.export_root = self.config["export_path"]
         self.downloads_dir = Path.home() / "Downloads"
+        self.window_hours = int(self.config.get("discovery_window_hours", 72))
 
     # --- helpers -------------------------------------------------------------
     def _db(self) -> Database:
@@ -111,7 +112,7 @@ class JobAppAPI:
             if status == "new":
                 # Fresh AND a plausible fit — don't flood the tab with off-lane
                 # postings from these general boards.
-                if is_fresh(job.posted_at, 24) is not True:
+                if is_fresh(job.posted_at, self.window_hours) is not True:
                     continue
                 if str(job.verdict) not in self._WORTH_A_LOOK:
                     continue
@@ -119,13 +120,14 @@ class JobAppAPI:
         rows.sort(key=lambda r: (r["score"] or 0), reverse=True)
         return {"status": status, "roles": rows}
 
-    def run_discovery(self, hours: int = 24, limit: int = 600) -> dict[str, Any]:
+    def run_discovery(self, hours: int | None = None, limit: int = 600) -> dict[str, Any]:
         """Live last-N-hours scan → score → packets. Needs network.
 
-        The limit caps total roles *seen* across all boards before the freshness
-        filter; with ~27 boards it must be high enough that every board is
-        scanned (a low cap silently skips later boards).
+        hours defaults to the configured discovery window (72h). The limit caps
+        total roles *seen* across all boards before the freshness filter; with
+        ~27 boards it must be high enough that every board is scanned.
         """
+        hours = int(hours) if hours else self.window_hours
         result = run_dry_pipeline(
             database_path=self.db_path,
             registry_path=self.config["live_company_registry"],

@@ -57,14 +57,14 @@
     <span id="counts" class="note"></span>
   </header>
   <nav>
-    <button data-tab="new" class="active">New (24h)</button>
+    <button data-tab="new" class="active">New (72h)</button>
     <button data-tab="outstanding">Outstanding</button>
     <button data-tab="applied">Applied</button>
     <button data-tab="settings">Settings</button>
   </nav>
   <main>
     <div class="bar" id="bar">
-      <button class="act" id="discoverBtn">Discover last 24h</button>
+      <button class="act" id="discoverBtn">Discover last 72h</button>
       <button class="ghost" id="refreshBtn">Refresh</button>
       <span id="status" class="note"></span>
     </div>
@@ -130,9 +130,9 @@ async function refresh(){
 }
 
 async function discover(){
-  $("discoverBtn").disabled = true; $("status").textContent = "Scanning last 24h…";
+  $("discoverBtn").disabled = true; $("status").textContent = "Scanning last 72h…";
   try {
-    const r = await api().run_discovery(24);
+    const r = await api().run_discovery(72);
     $("status").textContent =
       `Inserted ${r.jobs_inserted} · ${r.packets_ready} ready · ${r.network_status}`;
   } catch(e){ $("status").textContent = "Discovery failed: " + e; }

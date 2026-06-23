@@ -104,6 +104,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "high_penalty": -15,
     },
     "packet_soft_requirement_claims": ["years_of_experience"],
+    # Discovery freshness window (hours) for the New tab + default scans.
+    "discovery_window_hours": 72,
     # Hard location gate: a role must be remote OR in the DFW metroplex, else
     # it scores NOT_WORTH_TIME regardless of fit.
     "require_remote_or_dfw": True,
