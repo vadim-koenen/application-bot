@@ -50,6 +50,7 @@ from application_bot.packets import (
 from application_bot.pdf import export_application_pdfs
 from application_bot.pipeline import (
     discover_adzuna,
+    discover_jsearch,
     refresh_packets,
     run_dry_pipeline,
     scan_registry,
@@ -469,6 +470,19 @@ def command_scan_adzuna(args: argparse.Namespace, config: dict[str, Any]) -> int
     return 0
 
 
+def command_scan_jsearch(args: argparse.Namespace, config: dict[str, Any]) -> int:
+    database = _db(args, config)
+    _print(
+        discover_jsearch(
+            database,
+            config,
+            hours=args.hours,
+            queries=args.what or None,
+        )
+    )
+    return 0
+
+
 def command_make_pdf(args: argparse.Namespace, config: dict[str, Any]) -> int:
     database = _db(args, config)
     job = database.get_job(args.job_id)
@@ -742,6 +756,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     scan_adzuna.add_argument("--db")
     scan_adzuna.set_defaults(handler=command_scan_adzuna)
+
+    scan_jsearch = subparsers.add_parser(
+        "scan-jsearch",
+        help="Market-wide discovery via JSearch/RapidAPI (LinkedIn/Indeed/Zip); needs RAPIDAPI_KEY",
+    )
+    scan_jsearch.add_argument("--hours", type=int, default=24)
+    scan_jsearch.add_argument("--what", action="append", help="Search term (repeatable)")
+    scan_jsearch.add_argument("--db")
+    scan_jsearch.set_defaults(handler=command_scan_jsearch)
 
     make_pdf = subparsers.add_parser(
         "make-pdf",
