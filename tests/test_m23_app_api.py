@@ -8,6 +8,7 @@ digest. No network (run_discovery is exercised separately/live).
 from __future__ import annotations
 
 from copy import deepcopy
+from pathlib import Path
 
 import pytest
 import yaml
@@ -82,6 +83,7 @@ def _api(tmp_path) -> JobAppAPI:
     api.config["resume_master"] = str(master_path)
     api.config["digest_to"] = "me@example.com"
     api.export_root = str(tmp_path / "exports")
+    api.downloads_dir = tmp_path / "downloads"
     return api
 
 
@@ -168,6 +170,8 @@ def test_open_artifact_generates_and_opens_pdf(tmp_path, monkeypatch):
     cover = api.open_artifact(job_id, "cover")
     assert resume["ok"] and resume["path"].endswith("_resume.pdf")
     assert cover["ok"] and cover["path"].endswith("_cover.pdf")
-    # Each opened the right file via `open <path>`.
+    # The PDFs were downloaded to the Downloads folder, then opened.
+    assert (api.downloads_dir / Path(resume["path"]).name).exists()
+    assert (api.downloads_dir / Path(cover["path"]).name).exists()
     assert opened[0] == ["open", resume["path"]]
     assert opened[1] == ["open", cover["path"]]
