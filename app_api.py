@@ -120,8 +120,13 @@ class JobAppAPI:
         rows.sort(key=lambda r: (r["score"] or 0), reverse=True)
         return {"status": status, "roles": rows}
 
-    def run_discovery(self, hours: int = 24, limit: int = 50) -> dict[str, Any]:
-        """Live last-N-hours scan → score → packets. Needs network."""
+    def run_discovery(self, hours: int = 24, limit: int = 600) -> dict[str, Any]:
+        """Live last-N-hours scan → score → packets. Needs network.
+
+        The limit caps total roles *seen* across all boards before the freshness
+        filter; with ~27 boards it must be high enough that every board is
+        scanned (a low cap silently skips later boards).
+        """
         result = run_dry_pipeline(
             database_path=self.db_path,
             registry_path=self.config["live_company_registry"],
