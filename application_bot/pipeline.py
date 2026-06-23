@@ -249,10 +249,12 @@ def discover_jsearch(
     date_posted = "today" if hours <= 24 else "3days" if hours <= 72 else "week"
     now = datetime.now(UTC)
     seen = inserted = dropped_stale = 0
+    errors: list[str] = []
     for query in queries:
         try:
             jobs = adapter.discover_jobs(what=query, date_posted=date_posted)
-        except (OSError, ValueError):
+        except (OSError, ValueError) as exc:
+            errors.append(str(exc))
             continue
         for job in jobs:
             seen += 1
@@ -266,7 +268,7 @@ def discover_jsearch(
         if str(job.source) == "jsearch" and job.score is None:
             database.save_score(int(job.id), score_job(job, config))
             scored += 1
-    return {
+    result: dict[str, Any] = {
         "source": "jsearch",
         "enabled": True,
         "queries": len(queries),
@@ -275,6 +277,9 @@ def discover_jsearch(
         "dropped_stale": dropped_stale,
         "scored": scored,
     }
+    if errors and seen == 0:
+        result["error"] = errors[0]  # surface why nothing came back (e.g. 404)
+    return result
 
 
 def scan_registry(
