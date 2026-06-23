@@ -85,7 +85,7 @@ companies:
   - company: Braze
     ats: greenhouse
     board_token: braze
-    enabled: false
+    enabled: true
     scan_limit: 10
     target_relevance:
       - martech
@@ -97,7 +97,7 @@ companies:
   - company: Wiz
     ats: greenhouse
     board_token: wizinc
-    enabled: false
+    enabled: true
     scan_limit: 10
     target_relevance:
       - cybersecurity
@@ -121,7 +121,7 @@ companies:
   - company: Vanta
     ats: ashby
     board_name: vanta
-    enabled: false
+    enabled: true
     scan_limit: 10
     target_relevance:
       - cybersecurity
@@ -145,7 +145,7 @@ companies:
   - company: 6sense
     ats: greenhouse
     board_token: 6sense
-    enabled: false
+    enabled: true
     scan_limit: 10
     target_relevance:
       - martech
@@ -155,12 +155,13 @@ companies:
     source_url: https://boards-api.greenhouse.io/v1/boards/6sense/jobs?content=true
 
   # --- Candidate expansion (RevOps / martech / marketing-ops / GTM systems).
-  # Added 2026-06-22; enable after a live validation pass confirms the board
-  # token + that it returns jobs. Until then they are skipped by scan_registry.
+  # Added + live-validated 2026-06-22. Enabled boards returned a valid response;
+  # the remaining disabled ones (Gong, dbt Labs, Snowflake, Netlify, Hex) 404'd
+  # on their guessed token and need the correct identifier before enabling.
   - company: Brex
     ats: greenhouse
     board_token: brex
-    enabled: false
+    enabled: true
     scan_limit: 10
     target_relevance:
       - fintech
@@ -173,7 +174,7 @@ companies:
   - company: Samsara
     ats: greenhouse
     board_token: samsara
-    enabled: false
+    enabled: true
     scan_limit: 10
     target_relevance:
       - B2B SaaS
@@ -197,7 +198,7 @@ companies:
   - company: Airtable
     ats: greenhouse
     board_token: airtable
-    enabled: false
+    enabled: true
     scan_limit: 10
     target_relevance:
       - B2B SaaS
@@ -209,7 +210,7 @@ companies:
   - company: Asana
     ats: greenhouse
     board_token: asana
-    enabled: false
+    enabled: true
     scan_limit: 10
     target_relevance:
       - B2B SaaS
@@ -221,7 +222,7 @@ companies:
   - company: Plaid
     ats: lever
     site: plaid
-    enabled: false
+    enabled: true
     scan_limit: 10
     target_relevance:
       - fintech
@@ -245,7 +246,7 @@ companies:
   - company: Mercury
     ats: ashby
     board_name: mercury
-    enabled: false
+    enabled: true
     scan_limit: 10
     target_relevance:
       - fintech
@@ -257,7 +258,7 @@ companies:
   - company: Linear
     ats: ashby
     board_name: linear
-    enabled: false
+    enabled: true
     scan_limit: 10
     target_relevance:
       - developer tooling

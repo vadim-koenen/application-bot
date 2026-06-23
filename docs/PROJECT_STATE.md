@@ -49,6 +49,11 @@ attestations must be the user's personal act.
   Deterministic, submit-free: pre-fills only approved answers, leaves every
   REVIEW_REQUIRED answer blank for the human, resolves the role's ATS `.txt`,
   flags non-form (recruiter-email) apply URLs. 6 tests (114 total).
+- **M25** — validated registry: live-probed the candidate boards; enabled the 11
+  that returned a valid response (now **17 enabled**: Figma, Datadog, Highspot,
+  Outreach, Ramp, Deel, Braze, Wiz, Vanta, 6sense, Brex, Samsara, Airtable, Asana,
+  Plaid, Mercury, Linear). 5 left disabled (Gong/dbt Labs/Snowflake/Netlify/Hex —
+  404 on guessed token). Real 24h scan: 17/17 sources, 58 fresh roles.
 - **M24** — schedule + package: `app_main.py --auto` (scheduler entrypoint:
   live last-N-hours scan → email digest) + `launchd/com.vadim.jobapply-daily.plist`
   (daily 08:00). `setup_app.py` packages a `.app` via py2app. 3 tests (135 total).
