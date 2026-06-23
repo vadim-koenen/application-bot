@@ -14,7 +14,7 @@ the user to apply + mark applied.
 
 from __future__ import annotations
 
-import os
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -25,9 +25,6 @@ from application_bot.pdf import export_application_pdfs
 from application_bot.pipeline import is_fresh, run_dry_pipeline
 from application_bot.policy import evaluate_job_submission_policy
 from application_bot.resume import load_resume_master, render_ats_resume_text
-from application_bot.email_service import send_apply_digest
-
-_SMTP_VARS = ("SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "FROM_EMAIL")
 
 
 class JobAppAPI:
@@ -46,9 +43,6 @@ class JobAppAPI:
         database = Database(self.db_path)
         database.initialize()
         return database
-
-    def _recipient(self) -> str:
-        return str(self.config.get("digest_to") or os.getenv("DIGEST_TO") or "")
 
     def _cover_letter(self, database: Database, job: Any) -> str:
         row = database.latest_packet(int(job.id))
@@ -91,8 +85,6 @@ class JobAppAPI:
             "outstanding": len(ready),
             "applied": len(applied),
             "status_counts": counts,
-            "smtp_configured": all(os.getenv(var) for var in _SMTP_VARS),
-            "digest_to": self._recipient(),
             "registry": str(self.config.get("live_company_registry")),
         }
 
@@ -156,41 +148,21 @@ class JobAppAPI:
         )
         return {"ok": True, **pdfs}
 
-    def email_me(self, job_id: int | None = None, live: bool = False) -> dict[str, Any]:
-        database = self._db()
-        master = load_resume_master(self.config["resume_master"])
-        if job_id is not None:
-            jobs = [database.get_job(int(job_id))]
-        else:
-            jobs = [
-                job
-                for job in database.list_jobs(scored_only=True)
-                if str(job.packet_status) == "PACKET_READY"
-                and str(job.status) != "APPLIED"
-            ]
-        items: list[dict[str, Any]] = []
-        for job in jobs:
-            if not job:
-                continue
-            resume_text = render_ats_resume_text(job, master, self.config)
-            pdfs = export_application_pdfs(
-                job, resume_text, self._cover_letter(database, job), self.export_root
-            )
-            items.append(
-                {
-                    "company": job.company,
-                    "title": job.title,
-                    "score": job.score,
-                    "apply_url": job.apply_url,
-                    "attachments": [pdfs["resume_pdf"], pdfs["cover_pdf"]],
-                }
-            )
-        return send_apply_digest(
-            items,
-            to=self._recipient(),
-            output_root=self.export_root,
-            live=bool(live),
-        )
+    def open_artifact(self, job_id: int, kind: str = "resume") -> dict[str, Any]:
+        """Generate the role's optimized PDFs and open the requested one.
+
+        kind: "resume" or "cover". The PDF opens in the OS default viewer, where
+        it can be read, saved, or printed (clickable + downloadable).
+        """
+        result = self.make_artifacts(int(job_id))
+        if not result.get("ok"):
+            return result
+        path = result["cover_pdf"] if kind == "cover" else result["resume_pdf"]
+        try:
+            subprocess.run(["open", path], check=False)
+        except OSError as exc:  # pragma: no cover - platform dependent
+            return {"ok": False, "error": str(exc), "path": path}
+        return {"ok": True, "kind": kind, "path": path}
 
     def mark_applied(self, job_id: int, notes: str = "") -> dict[str, Any]:
         database = self._db()

@@ -54,6 +54,19 @@ attestations must be the user's personal act.
   `run_app.sh`, which now sources `.env` and defaults to the real pipeline DB so
   the window opens populated. `main` is the default branch; M1–M25 PRs closed
   (consolidated into main).
+- **M28** — app = apply hub, email removed. Each role shows a direct **Apply →**
+  link to the company form, **Résumé PDF** / **Cover Letter PDF** buttons (tailored
+  on click and opened in the viewer to save/print), and **Mark applied**. Dropped
+  the email surface from the app/CLI/scheduler (`open_artifact` replaces `email_me`;
+  `--auto` is discovery-only; `send-digest` CLI removed). `email_service.send_apply_digest`
+  remains as dormant library code. Verified apply URLs go straight to forms
+  (e.g. asana.com/jobs/apply/…). 
+- **M27** — curated registry: 27 RevOps/martech/B2B-SaaS boards (Klaviyo, ZoomInfo,
+  Salesloft, Apollo, Clari, Lattice, Twilio, Pendo, Asana…), retired 7 off-lane
+  eng/security boards. New tab now surfaces real in-lane roles.
+  `run_discovery` limit raised to 600 so all 27 boards get scanned.
+- **M26** — dockable AppleScript `.app` launcher (`make_macos_app.sh`); `run_app.sh`
+  sources `.env` + defaults to the real pipeline DB; New tab filtered to fits.
 - **M25** — validated registry: live-probed the candidate boards; enabled the 11
   that returned a valid response (now **17 enabled**: Figma, Datadog, Highspot,
   Outreach, Ramp, Deel, Braze, Wiz, Vanta, 6sense, Brex, Samsara, Airtable, Asana,

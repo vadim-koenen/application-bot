@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  Daily job-apply digest. Each morning at 08:00 it runs a live last-24h scan,
-  tailors résumé + cover-letter PDFs for newly-ready roles, and emails you the
-  apply digest with the PDFs attached. It does NOT submit applications.
-
-  Requires SMTP_* + DIGEST_TO in the repo .env (Gmail app password).
+  Daily discovery. Each morning at 08:00 it runs a live last-24h scan so the app
+  opens populated with fresh in-lane roles. It does NOT email or submit anything;
+  you review + apply in the app.
 
   Install (edit the paths below to your checkout first if different):
     cp launchd/com.vadim.jobapply-daily.plist ~/Library/LaunchAgents/
@@ -23,7 +21,6 @@
     <string>--auto</string>
     <string>--hours</string>
     <string>24</string>
-    <string>--live</string>
   </array>
   <key>WorkingDirectory</key>
   <string>/Users/vadimkoenen/Documents/Application Agent</string>

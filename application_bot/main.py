@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 from pathlib import Path
 import sys
 from typing import Any
@@ -40,7 +39,6 @@ from application_bot.confirmations import ImportedEmailConfirmationTracker
 from application_bot.database import Database
 from application_bot.email_service import (
     queue_email_applications,
-    send_apply_digest,
     send_email_applications,
 )
 from application_bot.packets import (
@@ -453,56 +451,6 @@ def command_ats_resume(args: argparse.Namespace, config: dict[str, Any]) -> int:
     return 0
 
 
-def _digest_items(
-    database: Database,
-    config: dict[str, Any],
-    output_root: str,
-    *,
-    limit: int | None = None,
-) -> list[dict[str, Any]]:
-    master = load_resume_master(config["resume_master"])
-    items: list[dict[str, Any]] = []
-    for job in database.list_jobs(scored_only=True):
-        if str(job.packet_status) != "PACKET_READY" or str(job.status) == "APPLIED":
-            continue
-        resume_text = render_ats_resume_text(job, master, config)
-        packet_row = database.latest_packet(int(job.id))
-        if packet_row:
-            cover_letter = json.loads(packet_row["packet_json"]).get("cover_letter", "")
-        else:
-            policy = evaluate_job_submission_policy(job, config)
-            cover_letter = generate_packet(job, config, policy).cover_letter
-        pdfs = export_application_pdfs(job, resume_text, cover_letter, output_root)
-        items.append(
-            {
-                "company": job.company,
-                "title": job.title,
-                "score": job.score,
-                "apply_url": job.apply_url,
-                "attachments": [pdfs["resume_pdf"], pdfs["cover_pdf"]],
-            }
-        )
-        if limit and len(items) >= limit:
-            break
-    return items
-
-
-def command_send_digest(args: argparse.Namespace, config: dict[str, Any]) -> int:
-    database = _db(args, config)
-    output_root = args.out or config["export_path"]
-    items = _digest_items(database, config, output_root, limit=args.limit)
-    to = args.to or config.get("digest_to") or os.getenv("DIGEST_TO") or ""
-    _print(
-        send_apply_digest(
-            items,
-            to=to,
-            output_root=output_root,
-            live=bool(args.live),
-        )
-    )
-    return 0
-
-
 def command_make_pdf(args: argparse.Namespace, config: dict[str, Any]) -> int:
     database = _db(args, config)
     job = database.get_job(args.job_id)
@@ -763,21 +711,6 @@ def build_parser() -> argparse.ArgumentParser:
     ats_resume.add_argument("--job-id", type=int)
     ats_resume.add_argument("--resume-master", dest="resume_master")
     ats_resume.set_defaults(handler=command_ats_resume)
-
-    send_digest = subparsers.add_parser(
-        "send-digest",
-        help="Email yourself ready roles (apply link + résumé/cover PDFs attached)",
-    )
-    send_digest.add_argument("--to", help="Recipient (default config digest_to / $DIGEST_TO)")
-    send_digest.add_argument("--db")
-    send_digest.add_argument("--out")
-    send_digest.add_argument("--limit", type=int, default=None)
-    send_digest.add_argument(
-        "--live",
-        action="store_true",
-        help="Actually send via SMTP (requires SMTP_* env); default writes an .eml preview",
-    )
-    send_digest.set_defaults(handler=command_send_digest)
 
     make_pdf = subparsers.add_parser(
         "make-pdf",

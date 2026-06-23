@@ -153,10 +153,21 @@ def test_new_tab_shows_only_fresh_fits(tmp_path):
     assert "Software Security Engineer" not in titles
 
 
-def test_email_me_dry_run(tmp_path):
+def test_open_artifact_generates_and_opens_pdf(tmp_path, monkeypatch):
     pytest.importorskip("fpdf")
+    import app_api as app_api_module
+
+    opened: list = []
+    monkeypatch.setattr(
+        app_api_module.subprocess, "run", lambda *a, **k: opened.append(a[0])
+    )
     api = _api(tmp_path)
-    result = api.email_me(live=False)
-    assert result["mode"] == "DRY_RUN"
-    assert result["roles"] == 1
-    assert result["attachments"] == 2
+    job_id = api.list_roles("outstanding")["roles"][0]["id"]
+
+    resume = api.open_artifact(job_id, "resume")
+    cover = api.open_artifact(job_id, "cover")
+    assert resume["ok"] and resume["path"].endswith("_resume.pdf")
+    assert cover["ok"] and cover["path"].endswith("_cover.pdf")
+    # Each opened the right file via `open <path>`.
+    assert opened[0] == ["open", resume["path"]]
+    assert opened[1] == ["open", cover["path"]]

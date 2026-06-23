@@ -37,12 +37,10 @@ def build_api() -> JobAppAPI:
 def run_cli() -> int:
     api = build_api()
     status = api.get_status()
-    smtp = "configured" if status["smtp_configured"] else "NOT configured"
     print(
         f"Roles: {status['total']} total · {status['outstanding']} outstanding · "
-        f"{status['applied']} applied"
+        f"{status['applied']} applied\n"
     )
-    print(f"Digest to: {status['digest_to'] or '(unset)'} · SMTP {smtp}\n")
     roles = api.list_roles("outstanding")["roles"]
     for role in roles[:15]:
         link = role["apply_url"] if role["is_form"] else "email/recruiter"
@@ -63,21 +61,12 @@ def run_discovery(hours: int) -> int:
     return 0
 
 
-def run_email(live: bool) -> int:
-    result = build_api().email_me(live=live)
-    print(f"[email] {result}")
-    return 0
-
-
-def run_auto(hours: int, live: bool) -> int:
-    """Scheduler entrypoint (launchd): live last-N-hours scan, then email the digest."""
-    api = build_api()
-    scan = api.run_discovery(hours=hours)
-    digest = api.email_me(live=live)
+def run_auto(hours: int) -> int:
+    """Scheduler entrypoint (launchd): live last-N-hours scan to populate the app."""
+    scan = build_api().run_discovery(hours=hours)
     print(
         f"[auto] discovered={scan['jobs_inserted']} ready={scan['packets_ready']} "
-        f"net={scan['network_status']} · digest={digest.get('mode')} "
-        f"roles={digest.get('roles')}"
+        f"net={scan['network_status']}"
     )
     return 0
 
@@ -111,16 +100,12 @@ def main(argv=None) -> int:
     parser.add_argument("--cli", action="store_true", help="Headless: status + outstanding roles.")
     parser.add_argument("--discover", action="store_true", help="Live last-N-hours scan.")
     parser.add_argument("--hours", type=int, default=24, help="Discovery freshness window.")
-    parser.add_argument("--email", action="store_true", help="Send yourself the apply digest.")
-    parser.add_argument("--auto", action="store_true", help="Scheduler: discover last-N-hours then email the digest.")
-    parser.add_argument("--live", action="store_true", help="(with --email/--auto) actually send via SMTP.")
+    parser.add_argument("--auto", action="store_true", help="Scheduler: discover last-N-hours to populate the app.")
     args = parser.parse_args(argv)
     if args.auto:
-        return run_auto(args.hours, args.live)
+        return run_auto(args.hours)
     if args.discover:
         return run_discovery(args.hours)
-    if args.email:
-        return run_email(args.live)
     return run_cli() if args.cli else run_gui()
 
 
