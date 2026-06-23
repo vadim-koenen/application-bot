@@ -65,6 +65,7 @@
   <main>
     <div class="bar" id="bar">
       <button class="act" id="discoverBtn">Discover last 24h</button>
+      <button class="ghost" id="refreshBtn">Refresh</button>
       <span id="status" class="note"></span>
     </div>
     <div id="view"></div>
@@ -161,8 +162,11 @@ function setTab(name){
 document.querySelectorAll("nav button").forEach(b =>
   b.addEventListener("click", () => setTab(b.dataset.tab)));
 $("discoverBtn").addEventListener("click", discover);
+$("refreshBtn").addEventListener("click", refresh);
 
 window.addEventListener("pywebviewready", refresh);
+// Auto-refresh so the open window reflects new results without reopening.
+setInterval(() => { if (window.pywebview && tab !== "settings") refresh(); }, 15000);
 setTimeout(() => { if(!window.pywebview) $("modePill").textContent = "open via app"; }, 1200);
 </script>
 </body>

@@ -54,6 +54,12 @@ attestations must be the user's personal act.
   `run_app.sh`, which now sources `.env` and defaults to the real pipeline DB so
   the window opens populated. `main` is the default branch; M1–M25 PRs closed
   (consolidated into main).
+- **M35** — geo-gate fix + app auto-refresh: the location gate now excludes only
+  **confirmed** off-geography roles (onsite/hybrid non-DFW); remote, DFW, AND
+  unknown-location roles pass — so curated roles imported without a location field
+  are no longer wrongly dropped (Outstanding restored to 14). App UI auto-refreshes
+  every 15s + a manual Refresh button, so the window reflects new results without
+  closing/reopening. M34 surfaced JSearch API errors. 1 test (148 total).
 - **M33** — clicking Résumé/Cover PDF now **downloads to ~/Downloads** (then opens):
   `open_artifact` copies the generated PDF into `JobAppAPI.downloads_dir` (default
   `~/Downloads`) before opening. (147 tests).

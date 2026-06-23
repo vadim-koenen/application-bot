@@ -175,11 +175,15 @@ def score_job(job: Job, config: dict[str, Any]) -> ScoreResult:
         )
     )
     generic_remote = job.location.strip().lower() in {"", "remote", "remote us"}
-    # Hard geography gate: must be remote or DFW metroplex.
+    # Hard geography gate: exclude roles CONFIRMED off-geography (onsite/hybrid in
+    # a non-DFW city). Remote, DFW, and unknown-location roles pass — we only hard-
+    # exclude when we can confirm the role is somewhere other than remote/DFW, so
+    # curated roles with a missing location field aren't wrongly dropped.
     require_geo = bool(config.get("require_remote_or_dfw", True))
-    location_ok = is_remote or is_dfw
+    confirmed_offsite = (is_onsite or is_hybrid) and not is_dfw and not is_remote
+    location_ok = not confirmed_offsite
     if require_geo and not location_ok:
-        risk_flags.append("Off-geography: not remote and not DFW metroplex.")
+        risk_flags.append("Off-geography: confirmed onsite/hybrid outside DFW.")
     if is_remote and (explicit_us or generic_remote):
         dimensions["location"] = 12
         reasons.append("Remote US-compatible location.")
