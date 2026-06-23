@@ -46,6 +46,13 @@ def test_offsite_elsewhere_is_excluded():
     assert _verdict("Austin, TX", "onsite") == FitVerdict.NOT_WORTH_TIME  # TX but not DFW
 
 
+def test_unknown_location_is_not_excluded():
+    # Curated roles imported without a location field must not be geo-gated out
+    # (we only hard-exclude CONFIRMED onsite/hybrid-elsewhere).
+    assert _verdict("", "unknown") != FitVerdict.NOT_WORTH_TIME
+    assert _verdict("United States", "unknown") != FitVerdict.NOT_WORTH_TIME
+
+
 def test_gate_can_be_disabled():
     config = deepcopy(DEFAULT_CONFIG)
     config["require_remote_or_dfw"] = False
