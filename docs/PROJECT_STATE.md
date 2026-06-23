@@ -49,6 +49,9 @@ attestations must be the user's personal act.
   Deterministic, submit-free: pre-fills only approved answers, leaves every
   REVIEW_REQUIRED answer blank for the human, resolves the role's ATS `.txt`,
   flags non-form (recruiter-email) apply URLs. 6 tests (114 total).
+- **M24** — schedule + package: `app_main.py --auto` (scheduler entrypoint:
+  live last-N-hours scan → email digest) + `launchd/com.vadim.jobapply-daily.plist`
+  (daily 08:00). `setup_app.py` packages a `.app` via py2app. 3 tests (135 total).
 - **M23** — desktop app (pywebview, mirrors the investment bot): `app_main.py`
   (window + headless CLI: `--cli`/`--discover`/`--email`), `app_api.py`
   (`JobAppAPI` js_api bridge: get_status / list_roles / run_discovery /
@@ -89,11 +92,21 @@ python3 -m application_bot.main ats-resume --db <db> --out <out>   # ATS resumes
 python3 -m application_bot.main report --db <db>
 ```
 
+## Desktop app (M20–M24, built)
+
+`./run_app.sh` opens the **Job Apply Assistant** (pywebview): Discover last-24h →
+tailor ATS résumé + cover letter (PDF) → email yourself the apply link with both
+attached → track New / Outstanding / Applied. Daily launchd schedule available.
+The app emails you to apply; it auto-submits only gated email-apply roles, never
+web forms (CAPTCHA/login + ToS).
+
+To go live, the operator must: (1) put `SMTP_*` + `DIGEST_TO` in `.env` (Gmail app
+password); (2) validate-and-enable the 16 candidate registry boards; optionally
+(3) `python3 setup_app.py py2app` for a dock `.app`.
+
 ## Next step
 
-The fill-plan core is built (M18). Remaining: the **live browser drive** —
-given one real http(s) ATS posting URL + user go-ahead, use Claude-in-Chrome to
-open the posting, apply the fill plan (`assisted-apply --job-id N`) to the user's
-own logged-in form, attach the role's ATS `.txt`, and **stop at Submit** for the
-human click. Blocker: the 13 ready roles are `manual_json` placeholders with no
-http form URL; a live posting URL must be supplied per role.
+- Validate the candidate ATS boards (live scan) and flip the good ones to
+  `enabled: true` for real last-24h coverage.
+- Optionally add a paid jobs-aggregator adapter for market-wide coverage.
+- Establish a `main` branch and merge the stacked M15–M24 PRs.

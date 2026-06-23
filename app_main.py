@@ -69,6 +69,19 @@ def run_email(live: bool) -> int:
     return 0
 
 
+def run_auto(hours: int, live: bool) -> int:
+    """Scheduler entrypoint (launchd): live last-N-hours scan, then email the digest."""
+    api = build_api()
+    scan = api.run_discovery(hours=hours)
+    digest = api.email_me(live=live)
+    print(
+        f"[auto] discovered={scan['jobs_inserted']} ready={scan['packets_ready']} "
+        f"net={scan['network_status']} · digest={digest.get('mode')} "
+        f"roles={digest.get('roles')}"
+    )
+    return 0
+
+
 def run_gui() -> int:
     try:
         import webview  # pywebview
@@ -99,8 +112,11 @@ def main(argv=None) -> int:
     parser.add_argument("--discover", action="store_true", help="Live last-N-hours scan.")
     parser.add_argument("--hours", type=int, default=24, help="Discovery freshness window.")
     parser.add_argument("--email", action="store_true", help="Send yourself the apply digest.")
-    parser.add_argument("--live", action="store_true", help="(with --email) actually send via SMTP.")
+    parser.add_argument("--auto", action="store_true", help="Scheduler: discover last-N-hours then email the digest.")
+    parser.add_argument("--live", action="store_true", help="(with --email/--auto) actually send via SMTP.")
     args = parser.parse_args(argv)
+    if args.auto:
+        return run_auto(args.hours, args.live)
     if args.discover:
         return run_discovery(args.hours)
     if args.email:
