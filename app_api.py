@@ -96,6 +96,9 @@ class JobAppAPI:
             "registry": str(self.config.get("live_company_registry")),
         }
 
+    # Verdicts worth surfacing on the New tab — fresh roles below this are noise.
+    _WORTH_A_LOOK = {"APPLY_PRIORITY", "GOOD_FIT", "MAYBE"}
+
     def list_roles(self, status: str = "outstanding") -> dict[str, Any]:
         database = self._db()
         rows: list[dict[str, Any]] = []
@@ -106,8 +109,13 @@ class JobAppAPI:
                 continue
             if status == "outstanding" and (applied or not ready):
                 continue
-            if status == "new" and is_fresh(job.posted_at, 24) is not True:
-                continue
+            if status == "new":
+                # Fresh AND a plausible fit — don't flood the tab with off-lane
+                # postings from these general boards.
+                if is_fresh(job.posted_at, 24) is not True:
+                    continue
+                if str(job.verdict) not in self._WORTH_A_LOOK:
+                    continue
             rows.append(self._row(job))
         rows.sort(key=lambda r: (r["score"] or 0), reverse=True)
         return {"status": status, "roles": rows}

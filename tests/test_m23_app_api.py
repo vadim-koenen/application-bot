@@ -108,6 +108,51 @@ def test_mark_applied_moves_role_to_applied(tmp_path):
     assert api.get_status()["applied"] == 1
 
 
+def test_new_tab_shows_only_fresh_fits(tmp_path):
+    from application_bot.models import utc_now
+
+    db_path = tmp_path / "crm.sqlite"
+    database = Database(db_path)
+    database.initialize()
+    config = deepcopy(DEFAULT_CONFIG)
+    fresh = utc_now()  # ISO, now
+    fit = Job(
+        external_id="fresh-fit",
+        source="greenhouse",
+        source_url="https://x/1",
+        apply_url="https://x/1/apply",
+        company="Acme",
+        title="Director, Marketing Operations",
+        location="Remote - United States",
+        remote_type="remote",
+        salary_min=180000,
+        salary_max=220000,
+        description="Own revenue operations, GTM systems, marketing operations.",
+        posted_at=fresh,
+    )
+    off = Job(
+        external_id="fresh-offlane",
+        source="greenhouse",
+        source_url="https://x/2",
+        apply_url="https://x/2/apply",
+        company="Acme",
+        title="Software Security Engineer",
+        location="Remote - United States",
+        remote_type="remote",
+        description="Secure corporate platforms; vulnerability management.",
+        posted_at=fresh,
+    )
+    for job in (fit, off):
+        jid, _ = database.upsert_job(job)
+        database.save_score(jid, score_job(database.get_job(jid), config))
+    api = JobAppAPI(db_path=db_path)
+    api.config = config
+    new = api.list_roles("new")["roles"]
+    titles = [r["title"] for r in new]
+    assert "Director, Marketing Operations" in titles
+    assert "Software Security Engineer" not in titles
+
+
 def test_email_me_dry_run(tmp_path):
     pytest.importorskip("fpdf")
     api = _api(tmp_path)
