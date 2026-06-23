@@ -2,10 +2,16 @@ from __future__ import annotations
 
 from copy import deepcopy
 from datetime import UTC, datetime, timedelta
+import os
 from pathlib import Path
 from typing import Any
 
-from application_bot.adapters import AshbyAdapter, GreenhouseAdapter, LeverAdapter
+from application_bot.adapters import (
+    AdzunaAdapter,
+    AshbyAdapter,
+    GreenhouseAdapter,
+    LeverAdapter,
+)
 from application_bot.config import (
     load_answer_bank,
     load_claim_evidence,
@@ -133,6 +139,77 @@ def is_fresh(value: Any, hours: int, *, now: datetime | None = None) -> bool | N
     return (now - posted) <= timedelta(hours=hours) and posted <= now + timedelta(
         hours=1
     )
+
+
+DEFAULT_ADZUNA_QUERIES = [
+    "marketing operations director",
+    "revenue operations director",
+    "marketing operations manager",
+    "marketing technology director",
+    "gtm systems",
+]
+
+
+def discover_adzuna(
+    database: Database,
+    config: dict[str, Any],
+    *,
+    hours: int = 24,
+    queries: list[str] | None = None,
+    transport: Any = None,
+    app_id: str | None = None,
+    app_key: str | None = None,
+    country: str = "us",
+) -> dict[str, Any]:
+    """Market-wide, function-targeted discovery via Adzuna. Skipped if no key.
+
+    Searches each query for roles posted within ``hours``, keeps the fresh ones,
+    upserts, and scores them. Adzuna descriptions are truncated, so these score
+    rougher than ATS-board roles — they are discovery leads.
+    """
+    app_id = app_id or os.getenv("ADZUNA_APP_ID")
+    app_key = app_key or os.getenv("ADZUNA_APP_KEY")
+    if not app_id or not app_key:
+        return {"source": "adzuna", "enabled": False,
+                "reason": "ADZUNA_APP_ID / ADZUNA_APP_KEY not set"}
+    queries = queries or config.get("adzuna_queries") or DEFAULT_ADZUNA_QUERIES
+    adapter = AdzunaAdapter(transport=transport) if transport else AdzunaAdapter()
+    now = datetime.now(UTC)
+    max_days = max(1, (hours + 23) // 24)
+    seen = inserted = dropped_stale = 0
+    for query in queries:
+        try:
+            jobs = adapter.discover_jobs(
+                app_id=app_id,
+                app_key=app_key,
+                what=query,
+                max_days_old=max_days,
+                results_per_page=50,
+                country=country,
+            )
+        except (OSError, ValueError):  # network/source isolation
+            continue
+        for job in jobs:
+            seen += 1
+            if is_fresh(job.posted_at, hours, now=now) is not True:
+                dropped_stale += 1
+                continue
+            _, created = database.upsert_job(job)
+            inserted += int(created)
+    scored = 0
+    for job in database.list_jobs():
+        if str(job.source) == "adzuna" and job.score is None:
+            database.save_score(int(job.id), score_job(job, config))
+            scored += 1
+    return {
+        "source": "adzuna",
+        "enabled": True,
+        "queries": len(queries),
+        "jobs_seen": seen,
+        "jobs_inserted": inserted,
+        "dropped_stale": dropped_stale,
+        "scored": scored,
+    }
 
 
 def scan_registry(
