@@ -36,6 +36,8 @@
   .score { font-weight:700; }
   .sub { color:var(--muted); font-size:12px; }
   a { color:var(--accent); text-decoration:none; }
+  a.apply { font-weight:600; border:1px solid var(--accent); padding:6px 11px;
+            border-radius:8px; display:inline-block; }
   .tag { font-size:11px; padding:2px 7px; border-radius:999px; border:1px solid var(--line);
          color:var(--muted); }
   .tag.form { color:var(--good); border-color:var(--good); }
@@ -51,7 +53,6 @@
   <header>
     <h1>Job Apply Assistant</h1>
     <span id="modePill" class="pill">connecting…</span>
-    <span id="smtpPill" class="pill">SMTP ?</span>
     <span style="flex:1"></span>
     <span id="counts" class="note"></span>
   </header>
@@ -64,7 +65,6 @@
   <main>
     <div class="bar" id="bar">
       <button class="act" id="discoverBtn">Discover last 24h</button>
-      <button class="ghost" id="emailAllBtn">Email me all outstanding</button>
       <span id="status" class="note"></span>
     </div>
     <div id="view"></div>
@@ -83,9 +83,11 @@ function tag(role){
 }
 
 function actions(role){
-  let html = `<button class="ghost" onclick="emailOne(${role.id})">Email me</button>`;
+  let html = "";
   if (role.is_form && role.apply_url)
-    html += ` <a href="${role.apply_url}" target="_blank">Open</a>`;
+    html += `<a class="apply" href="${role.apply_url}" target="_blank">Apply &rarr;</a> `;
+  html += `<button class="ghost" onclick="openPdf(${role.id},'resume')">Résumé PDF</button> `;
+  html += `<button class="ghost" onclick="openPdf(${role.id},'cover')">Cover Letter PDF</button>`;
   if (role.status !== "APPLIED")
     html += ` <button class="ghost" onclick="markApplied(${role.id})">Mark applied</button>`;
   return html;
@@ -105,24 +107,19 @@ function renderRoles(roles){
 
 function renderSettings(s){
   return `
-    <div class="field"><label>Digest recipient</label>
-      <input id="digestTo" value="${s.digest_to || ""}" placeholder="you@example.com" disabled />
-      <div class="note">Set DIGEST_TO + SMTP_* in .env (Gmail app password).</div></div>
-    <div class="field"><label>SMTP</label>
-      <div>${s.smtp_configured ? "✅ configured" : "⚠️ not configured (dry-run only)"}</div></div>
-    <div class="field"><label>Registry</label>
+    <div class="field"><label>Company registry</label>
       <div class="sub">${s.registry}</div></div>
     <div class="field note">
-      Auto-submit policy: the app auto-sends only email-apply roles (gated). Web-form
-      roles are emailed to you to one-click apply, then mark applied.</div>`;
+      Workflow: click <b>Apply &rarr;</b> to open the company's application form,
+      <b>Résumé PDF</b> / <b>Cover Letter PDF</b> to open your role-tailored documents
+      (save or print from the viewer), then <b>Mark applied</b> when you submit.
+      <br><br>The bot discovers and tailors; you submit on the company's own form.</div>`;
 }
 
 async function refresh(){
   const s = await api().get_status();
   $("modePill").textContent = "connected";
   $("modePill").className = "pill ok";
-  $("smtpPill").textContent = s.smtp_configured ? "SMTP ok" : "SMTP off";
-  $("smtpPill").className = "pill " + (s.smtp_configured ? "ok" : "bad");
   $("counts").textContent =
     `${s.total} roles · ${s.outstanding} outstanding · ${s.applied} applied`;
   $("bar").style.display = (tab === "settings") ? "none" : "flex";
@@ -141,15 +138,13 @@ async function discover(){
   $("discoverBtn").disabled = false; refresh();
 }
 
-async function emailOne(id){
-  $("status").textContent = "Emailing…";
-  const r = await api().email_me(id, false);
-  $("status").textContent = `Digest (${r.mode}) · ${r.roles} role(s), ${r.attachments ?? 0} PDFs`;
-}
-async function emailAll(){
-  $("status").textContent = "Emailing outstanding…";
-  const r = await api().email_me(null, false);
-  $("status").textContent = `Digest (${r.mode}) · ${r.roles} role(s), ${r.attachments ?? 0} PDFs`;
+async function openPdf(id, kind){
+  const label = kind === "cover" ? "cover letter" : "résumé";
+  $("status").textContent = `Tailoring ${label}…`;
+  const r = await api().open_artifact(id, kind);
+  $("status").textContent = r.ok
+    ? `Opened ${label} PDF (save or print from the viewer)`
+    : `Error: ${r.error || "could not open"}`;
 }
 async function markApplied(id){
   await api().mark_applied(id, "");
@@ -166,7 +161,6 @@ function setTab(name){
 document.querySelectorAll("nav button").forEach(b =>
   b.addEventListener("click", () => setTab(b.dataset.tab)));
 $("discoverBtn").addEventListener("click", discover);
-$("emailAllBtn").addEventListener("click", emailAll);
 
 window.addEventListener("pywebviewready", refresh);
 setTimeout(() => { if(!window.pywebview) $("modePill").textContent = "open via app"; }, 1200);
