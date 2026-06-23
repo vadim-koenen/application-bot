@@ -7,6 +7,11 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# GUI launches (Launchpad/dock) get a minimal PATH that omits Homebrew, so
+# `python3` would resolve to the system one without our deps. Put the dep-having
+# interpreters first.
+export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"
+
 # Load .env (APPLICATION_BOT_DB, SMTP_*, DIGEST_TO, …) if present.
 if [ -f .env ]; then set -a; . ./.env; set +a; fi
 # Default to the real pipeline DB if the operator hasn't pointed elsewhere.
