@@ -54,6 +54,9 @@ attestations must be the user's personal act.
   `run_app.sh`, which now sources `.env` and defaults to the real pipeline DB so
   the window opens populated. `main` is the default branch; M1–M25 PRs closed
   (consolidated into main).
+- **M33** — clicking Résumé/Cover PDF now **downloads to ~/Downloads** (then opens):
+  `open_artifact` copies the generated PDF into `JobAppAPI.downloads_dir` (default
+  `~/Downloads`) before opening. (147 tests).
 - **M32** — JSearch discovery (LinkedIn/Indeed/ZipRecruiter, legitimately):
   `JSearchAdapter` + `pipeline.discover_jsearch` pull via JSearch/RapidAPI, which
   aggregates Google-for-Jobs (LinkedIn/Indeed/ZipRecruiter/Glassdoor) — no scraping,

@@ -143,7 +143,7 @@ async function openPdf(id, kind){
   $("status").textContent = `Tailoring ${label}…`;
   const r = await api().open_artifact(id, kind);
   $("status").textContent = r.ok
-    ? `Opened ${label} PDF (save or print from the viewer)`
+    ? `Downloaded ${label} PDF to your Downloads folder`
     : `Error: ${r.error || "could not open"}`;
 }
 async function markApplied(id){

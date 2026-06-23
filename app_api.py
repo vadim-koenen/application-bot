@@ -14,6 +14,7 @@ the user to apply + mark applied.
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -42,6 +43,7 @@ class JobAppAPI:
         self.config = load_config(config_path)
         self.db_path = str(db_path or self.config["database_path"])
         self.export_root = self.config["export_path"]
+        self.downloads_dir = Path.home() / "Downloads"
 
     # --- helpers -------------------------------------------------------------
     def _db(self) -> Database:
@@ -164,20 +166,23 @@ class JobAppAPI:
         return {"ok": True, **pdfs}
 
     def open_artifact(self, job_id: int, kind: str = "resume") -> dict[str, Any]:
-        """Generate the role's optimized PDFs and open the requested one.
+        """Generate the role's optimized PDF, copy it to ~/Downloads, and open it.
 
-        kind: "resume" or "cover". The PDF opens in the OS default viewer, where
-        it can be read, saved, or printed (clickable + downloadable).
+        kind: "resume" or "cover". The file lands in the Downloads folder (a real
+        download) and opens in the OS default viewer.
         """
         result = self.make_artifacts(int(job_id))
         if not result.get("ok"):
             return result
-        path = result["cover_pdf"] if kind == "cover" else result["resume_pdf"]
+        source = result["cover_pdf"] if kind == "cover" else result["resume_pdf"]
         try:
-            subprocess.run(["open", path], check=False)
+            self.downloads_dir.mkdir(parents=True, exist_ok=True)
+            dest = self.downloads_dir / Path(source).name
+            shutil.copy2(source, dest)
+            subprocess.run(["open", str(dest)], check=False)
         except OSError as exc:  # pragma: no cover - platform dependent
-            return {"ok": False, "error": str(exc), "path": path}
-        return {"ok": True, "kind": kind, "path": path}
+            return {"ok": False, "error": str(exc), "path": source}
+        return {"ok": True, "kind": kind, "path": str(dest), "downloaded": True}
 
     def mark_applied(self, job_id: int, notes: str = "") -> dict[str, Any]:
         database = self._db()
