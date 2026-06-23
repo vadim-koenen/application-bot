@@ -99,7 +99,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="Job application desktop app")
     parser.add_argument("--cli", action="store_true", help="Headless: status + outstanding roles.")
     parser.add_argument("--discover", action="store_true", help="Live last-N-hours scan.")
-    parser.add_argument("--hours", type=int, default=24, help="Discovery freshness window.")
+    parser.add_argument("--hours", type=int, default=72, help="Discovery freshness window.")
     parser.add_argument("--auto", action="store_true", help="Scheduler: discover last-N-hours to populate the app.")
     args = parser.parse_args(argv)
     if args.auto:
