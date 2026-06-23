@@ -49,6 +49,12 @@ attestations must be the user's personal act.
   Deterministic, submit-free: pre-fills only approved answers, leaves every
   REVIEW_REQUIRED answer blank for the human, resolves the role's ATS `.txt`,
   flags non-form (recruiter-email) apply URLs. 6 tests (114 total).
+- **M23** — desktop app (pywebview, mirrors the investment bot): `app_main.py`
+  (window + headless CLI: `--cli`/`--discover`/`--email`), `app_api.py`
+  (`JobAppAPI` js_api bridge: get_status / list_roles / run_discovery /
+  make_artifacts / email_me / mark_applied), `app_ui/index.html` (New-24h /
+  Outstanding / Applied / Settings tabs, mark-applied). `run_app.sh`,
+  `requirements-app.txt`, `setup_app.py` (py2app). 3 tests (132 total).
 - **M22** — apply digest: `email_service.send_apply_digest` emails the user one
   ranked list of ready roles with the apply link + résumé/cover **PDFs attached**.
   New `send-digest --to … [--live]` CLI (dry-run writes an `.eml`; live needs

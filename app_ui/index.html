@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Job Apply Assistant</title>
+<style>
+  :root { --bg:#0f1115; --card:#1a1d24; --line:#2a2f3a; --fg:#e6e8ec;
+          --muted:#9aa3b2; --accent:#4f8cff; --good:#16a34a; --warn:#d97706; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:-apple-system,Helvetica,Arial,sans-serif;
+         background:var(--bg); color:var(--fg); font-size:14px; }
+  header { padding:16px 20px; border-bottom:1px solid var(--line);
+           display:flex; align-items:center; gap:14px; }
+  header h1 { font-size:16px; margin:0; font-weight:600; }
+  .pill { font-size:12px; color:var(--muted); border:1px solid var(--line);
+          padding:3px 8px; border-radius:999px; }
+  .pill.ok { color:var(--good); border-color:var(--good); }
+  .pill.bad { color:var(--warn); border-color:var(--warn); }
+  nav { display:flex; gap:4px; padding:10px 16px; border-bottom:1px solid var(--line); }
+  nav button { background:transparent; color:var(--muted); border:none;
+               padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px; }
+  nav button.active { background:var(--card); color:var(--fg); }
+  main { padding:16px 20px; }
+  .bar { display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
+  button.act { background:var(--accent); color:#fff; border:none; padding:8px 14px;
+               border-radius:8px; cursor:pointer; font-size:13px; }
+  button.ghost { background:var(--card); color:var(--fg); border:1px solid var(--line);
+                 padding:7px 12px; border-radius:8px; cursor:pointer; font-size:13px; }
+  button:disabled { opacity:.5; cursor:default; }
+  .note { color:var(--muted); font-size:12px; }
+  table { width:100%; border-collapse:collapse; }
+  th,td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--line);
+          vertical-align:top; }
+  th { color:var(--muted); font-weight:500; font-size:12px; }
+  .score { font-weight:700; }
+  .sub { color:var(--muted); font-size:12px; }
+  a { color:var(--accent); text-decoration:none; }
+  .tag { font-size:11px; padding:2px 7px; border-radius:999px; border:1px solid var(--line);
+         color:var(--muted); }
+  .tag.form { color:var(--good); border-color:var(--good); }
+  .tag.email { color:var(--accent); border-color:var(--accent); }
+  .empty { color:var(--muted); padding:30px 0; text-align:center; }
+  .field { margin:10px 0; }
+  label { display:block; color:var(--muted); font-size:12px; margin-bottom:4px; }
+  input { width:340px; max-width:100%; padding:8px; border-radius:8px;
+          border:1px solid var(--line); background:var(--bg); color:var(--fg); }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Job Apply Assistant</h1>
+    <span id="modePill" class="pill">connecting…</span>
+    <span id="smtpPill" class="pill">SMTP ?</span>
+    <span style="flex:1"></span>
+    <span id="counts" class="note"></span>
+  </header>
+  <nav>
+    <button data-tab="new" class="active">New (24h)</button>
+    <button data-tab="outstanding">Outstanding</button>
+    <button data-tab="applied">Applied</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+  <main>
+    <div class="bar" id="bar">
+      <button class="act" id="discoverBtn">Discover last 24h</button>
+      <button class="ghost" id="emailAllBtn">Email me all outstanding</button>
+      <span id="status" class="note"></span>
+    </div>
+    <div id="view"></div>
+  </main>
+
+<script>
+const api = () => window.pywebview.api;
+let tab = "new";
+
+function $(id){ return document.getElementById(id); }
+
+function tag(role){
+  return role.is_form
+    ? '<span class="tag form">web form</span>'
+    : '<span class="tag email">email / recruiter</span>';
+}
+
+function actions(role){
+  let html = `<button class="ghost" onclick="emailOne(${role.id})">Email me</button>`;
+  if (role.is_form && role.apply_url)
+    html += ` <a href="${role.apply_url}" target="_blank">Open</a>`;
+  if (role.status !== "APPLIED")
+    html += ` <button class="ghost" onclick="markApplied(${role.id})">Mark applied</button>`;
+  return html;
+}
+
+function renderRoles(roles){
+  if (!roles.length) return `<div class="empty">No roles here yet. Try “Discover last 24h”.</div>`;
+  const rows = roles.map(r => `
+    <tr>
+      <td class="score">${r.score ?? ""}</td>
+      <td><b>${r.company}</b><br><span class="sub">${r.title}</span></td>
+      <td>${tag(r)}</td>
+      <td>${actions(r)}</td>
+    </tr>`).join("");
+  return `<table><tr><th>Score</th><th>Role</th><th>Apply</th><th>Actions</th></tr>${rows}</table>`;
+}
+
+function renderSettings(s){
+  return `
+    <div class="field"><label>Digest recipient</label>
+      <input id="digestTo" value="${s.digest_to || ""}" placeholder="you@example.com" disabled />
+      <div class="note">Set DIGEST_TO + SMTP_* in .env (Gmail app password).</div></div>
+    <div class="field"><label>SMTP</label>
+      <div>${s.smtp_configured ? "✅ configured" : "⚠️ not configured (dry-run only)"}</div></div>
+    <div class="field"><label>Registry</label>
+      <div class="sub">${s.registry}</div></div>
+    <div class="field note">
+      Auto-submit policy: the app auto-sends only email-apply roles (gated). Web-form
+      roles are emailed to you to one-click apply, then mark applied.</div>`;
+}
+
+async function refresh(){
+  const s = await api().get_status();
+  $("modePill").textContent = "connected";
+  $("modePill").className = "pill ok";
+  $("smtpPill").textContent = s.smtp_configured ? "SMTP ok" : "SMTP off";
+  $("smtpPill").className = "pill " + (s.smtp_configured ? "ok" : "bad");
+  $("counts").textContent =
+    `${s.total} roles · ${s.outstanding} outstanding · ${s.applied} applied`;
+  $("bar").style.display = (tab === "settings") ? "none" : "flex";
+  if (tab === "settings"){ $("view").innerHTML = renderSettings(s); return; }
+  const data = await api().list_roles(tab);
+  $("view").innerHTML = renderRoles(data.roles);
+}
+
+async function discover(){
+  $("discoverBtn").disabled = true; $("status").textContent = "Scanning last 24h…";
+  try {
+    const r = await api().run_discovery(24);
+    $("status").textContent =
+      `Inserted ${r.jobs_inserted} · ${r.packets_ready} ready · ${r.network_status}`;
+  } catch(e){ $("status").textContent = "Discovery failed: " + e; }
+  $("discoverBtn").disabled = false; refresh();
+}
+
+async function emailOne(id){
+  $("status").textContent = "Emailing…";
+  const r = await api().email_me(id, false);
+  $("status").textContent = `Digest (${r.mode}) · ${r.roles} role(s), ${r.attachments ?? 0} PDFs`;
+}
+async function emailAll(){
+  $("status").textContent = "Emailing outstanding…";
+  const r = await api().email_me(null, false);
+  $("status").textContent = `Digest (${r.mode}) · ${r.roles} role(s), ${r.attachments ?? 0} PDFs`;
+}
+async function markApplied(id){
+  await api().mark_applied(id, "");
+  refresh();
+}
+
+function setTab(name){
+  tab = name;
+  document.querySelectorAll("nav button").forEach(b =>
+    b.classList.toggle("active", b.dataset.tab === name));
+  refresh();
+}
+
+document.querySelectorAll("nav button").forEach(b =>
+  b.addEventListener("click", () => setTab(b.dataset.tab)));
+$("discoverBtn").addEventListener("click", discover);
+$("emailAllBtn").addEventListener("click", emailAll);
+
+window.addEventListener("pywebviewready", refresh);
+setTimeout(() => { if(!window.pywebview) $("modePill").textContent = "open via app"; }, 1200);
+</script>
+</body>
+</html>

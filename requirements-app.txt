@@ -1,0 +1,11 @@
+# Desktop app (Job Apply Assistant) dependencies.
+#   pip install -r requirements-app.txt
+# The core logic (application_bot) is pure stdlib + PyYAML; these are only for
+# the desktop shell and PDF artifacts.
+
+pywebview>=5.0        # native macOS window hosting the UI (js_api bridge)
+fpdf2>=2.8            # résumé + cover-letter PDF generation
+
+# Packaging into a dock app (.app):
+#   pip install py2app
+#   python3 setup_app.py py2app
