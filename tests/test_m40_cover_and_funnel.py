@@ -17,7 +17,12 @@ from application_bot.claims import packet_claim_violations
 from application_bot.config import DEFAULT_CONFIG, load_claim_inventory
 from application_bot.database import Database
 from application_bot.models import Job, utc_now
-from application_bot.packets import generate_packet
+from application_bot.packets import (
+    _DEFAULT_LEAD,
+    _lead_clause,
+    _role_focus_snippet,
+    generate_packet,
+)
 from application_bot.policy import evaluate_job_submission_policy
 from application_bot.scoring import score_job
 
@@ -77,6 +82,33 @@ def test_cover_letter_without_highlights_is_clean():
     assert packet_claim_violations(packet, inventory) == []
     assert "Acme" in packet.cover_letter
     assert "A few results from that work" not in packet.cover_letter
+
+
+def test_cover_lead_clause_tracks_jd_theme():
+    demand = _lead_clause(["demand generation", "revenue systems"])
+    ops = _lead_clause(["marketing operations"])
+    assert "demand" in demand.lower()
+    assert "demand" not in ops.lower()
+    assert demand != ops
+    assert _lead_clause(["unmapped theme"]) == _DEFAULT_LEAD
+
+
+def test_role_focus_snippet_drops_unsafe_jd_text():
+    inventory = load_claim_inventory(CLAIMS)
+    clean = Job(external_id="a", source="s", source_url="u", apply_url="u",
+                company="C", title="T",
+                responsibilities="Own the marketing operations and martech stack.")
+    assert "marketing operations" in _role_focus_snippet(clean, inventory).lower()
+    # Comp/legal-sensitive first sentence is suppressed entirely.
+    sensitive = Job(external_id="b", source="s", source_url="u", apply_url="u",
+                    company="C", title="T",
+                    responsibilities="Requires visa sponsorship and salary negotiation.")
+    assert _role_focus_snippet(sensitive, inventory) == ""
+    # A flagged claim (tenure) in the JD line is suppressed too.
+    flagged = Job(external_id="c", source="s", source_url="u", apply_url="u",
+                  company="C", title="T",
+                  responsibilities="Demands 15+ years of operations leadership.")
+    assert _role_focus_snippet(flagged, inventory) == ""
 
 
 def test_applied_role_leaves_new_bucket(tmp_path):

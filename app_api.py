@@ -20,9 +20,10 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from application_bot.assisted_apply import build_fill_plan
 from application_bot.config import load_config
 from application_bot.database import Database
-from application_bot.packets import generate_packet
+from application_bot.packets import generate_packet, packet_to_dict
 from application_bot.pdf import export_application_pdfs
 from application_bot.pipeline import (
     discover_adzuna,
@@ -208,6 +209,20 @@ class JobAppAPI:
         )
         return {"ok": True, **pdfs}
 
+    def _download(self, source: str, *, open_after: bool = True) -> str:
+        """Copy a generated artifact into ~/Downloads (a real download).
+
+        Returns the destination path. Opens it in the OS viewer when
+        open_after is set (single-asset clicks); the Start-application flow
+        downloads both assets quietly and opens the form instead.
+        """
+        self.downloads_dir.mkdir(parents=True, exist_ok=True)
+        dest = self.downloads_dir / Path(source).name
+        shutil.copy2(source, dest)
+        if open_after:
+            subprocess.run(["open", str(dest)], check=False)
+        return str(dest)
+
     def open_artifact(self, job_id: int, kind: str = "resume") -> dict[str, Any]:
         """Generate the role's optimized PDF, copy it to ~/Downloads, and open it.
 
@@ -219,13 +234,62 @@ class JobAppAPI:
             return result
         source = result["cover_pdf"] if kind == "cover" else result["resume_pdf"]
         try:
-            self.downloads_dir.mkdir(parents=True, exist_ok=True)
-            dest = self.downloads_dir / Path(source).name
-            shutil.copy2(source, dest)
-            subprocess.run(["open", str(dest)], check=False)
+            dest = self._download(source, open_after=True)
         except OSError as exc:  # pragma: no cover - platform dependent
             return {"ok": False, "error": str(exc), "path": source}
-        return {"ok": True, "kind": kind, "path": str(dest), "downloaded": True}
+        return {"ok": True, "kind": kind, "path": dest, "downloaded": True}
+
+    def start_application(self, job_id: int) -> dict[str, Any]:
+        """One-click assisted apply — open the company's form with assets ready.
+
+        BOUNDARY: this NEVER submits. It tailors and downloads both PDFs to
+        ~/Downloads, opens the company's own apply page in the browser, and
+        returns the pre-approved answers to paste plus the fields the human
+        must complete personally. The submit/attestation stays the human's act.
+        """
+        database = self._db()
+        job = database.get_job(int(job_id))
+        if not job:
+            return {"ok": False, "error": f"Job {job_id} not found"}
+        result = self.make_artifacts(int(job_id))
+        if not result.get("ok"):
+            return result
+        try:
+            self._download(result["resume_pdf"], open_after=False)
+            self._download(result["cover_pdf"], open_after=False)
+        except OSError as exc:  # pragma: no cover - platform dependent
+            return {"ok": False, "error": str(exc)}
+        downloaded = [
+            Path(result["resume_pdf"]).name,
+            Path(result["cover_pdf"]).name,
+        ]
+        policy = evaluate_job_submission_policy(job, self.config)
+        packet = packet_to_dict(
+            generate_packet(
+                job, self.config, policy, impact_highlights=self._approved_impact()
+            )
+        )
+        plan = build_fill_plan(job, packet, self.export_root)
+        answers = [
+            {"label": field.label, "value": field.value}
+            for field in plan.autofill_fields
+        ]
+        leave_blank = [field.label for field in plan.human_fields]
+        is_form = str(job.apply_url or "").lower().startswith("http")
+        if is_form:
+            subprocess.run(["open", str(job.apply_url)], check=False)
+        return {
+            "ok": True,
+            "opened": is_form,
+            "is_form": is_form,
+            # The raw apply channel — an http form URL, or a recruiter/ATS hint
+            # like "recruiter:Savannah@Mondo …" for human-routed roles.
+            "channel": job.apply_url or "",
+            "apply_url": job.apply_url if is_form else "",
+            "downloaded": downloaded,
+            "answers": answers,
+            "leave_blank": leave_blank,
+        }
 
     def mark_applied(self, job_id: int, notes: str = "") -> dict[str, Any]:
         database = self._db()

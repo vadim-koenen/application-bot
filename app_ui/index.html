@@ -182,10 +182,16 @@
   .dmsg.err { color:var(--hot); }
   .dfoot { padding:16px 22px; border-top:1px solid var(--line); display:flex;
            gap:10px; flex-wrap:wrap; align-items:center; }
-  a.apply { background:var(--brand); color:#fff; font-weight:600; padding:9px 15px;
-            border-radius:8px; text-decoration:none; font-size:13px; }
+  .apply { background:var(--brand); color:#fff; font-weight:600; padding:9px 15px;
+            border-radius:8px; text-decoration:none; font-size:13px; border:none; cursor:pointer; }
   .nextact { font-size:12px; color:var(--muted); background:#fafbfd;
              border-left:3px solid var(--brand); padding:8px 12px; border-radius:0 6px 6px 0; }
+  .applyhelp { background:#f1f7ff; border:1px solid #cfe0ff; border-radius:10px;
+               padding:14px 16px; margin-bottom:18px; }
+  .applyhelp h4 { font-size:11px; text-transform:uppercase; letter-spacing:.5px;
+                  color:var(--brand); margin:0 0 10px; }
+  .applyhelp .kv .kk { color:var(--muted); }
+  .note2 { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.5; }
 </style>
 </head>
 <body>
@@ -511,7 +517,8 @@ async function openDrawer(id){
     ${d.requirements?`<div class="sec"><h4>Requirements</h4><div class="jd">${esc(d.requirements)}</div></div>`:""}`;
 
   let foot="";
-  if(d.is_form && d.apply_url) foot += `<a class="apply" href="${esc(d.apply_url)}" target="_blank">Apply →</a>`;
+  foot += `<button class="apply" onclick="startApplication(${d.id})">`
+        + `${d.is_form ? "Start application →" : "Prepare application"}</button>`;
   foot += `<button class="ghost" onclick="openPdf(${d.id},'resume')">Résumé PDF</button>`;
   foot += `<button class="ghost" onclick="openPdf(${d.id},'cover')">Cover PDF</button>`;
   if(d.status!=="APPLIED" && d.status!=="RESPONDED")
@@ -535,6 +542,36 @@ async function openPdf(id,kind){
     const msg = ok ? `✓ Saved ${label} PDF to your Downloads folder` : `Error: ${(r&&r.error)||"could not open"}`;
     drawerMsg(msg, !ok); setStatus(msg);
   } catch(e){ drawerMsg("Error: "+e, true); }
+}
+async function startApplication(id){
+  drawerMsg("Tailoring your documents…");
+  try {
+    const r = await api().start_application(id);
+    if(!r || !r.ok){ drawerMsg("Error: "+((r&&r.error)||"could not start"), true); return; }
+    drawerMsg(r.opened
+      ? "✓ Opened the application form in your browser. Résumé + cover saved to Downloads — review and submit."
+      : "✓ Résumé + cover saved to Downloads. This role is recruiter/ATS-routed — see how to apply below.");
+    renderApplyHelper(r);
+  } catch(e){ drawerMsg("Error: "+e, true); }
+}
+function renderApplyHelper(r){
+  const rows = (r.answers||[]).map(a=>
+    `<div class="kv"><span class="kk">${esc(a.label)}</span><b>${esc(a.value)}</b></div>`).join("");
+  const blanks = (r.leave_blank||[]).length
+    ? `<div class="note2"><b>Fill these yourself:</b> ${(r.leave_blank).map(esc).join(" · ")}</div>` : "";
+  const channel = (!r.opened && r.channel)
+    ? `<div class="note2"><b>How to apply:</b> ${esc(r.channel)}</div>` : "";
+  const html = `<div class="applyhelp">
+      <h4>${r.opened ? "Paste these into the form" : "Ready to apply"}</h4>
+      ${channel}
+      ${rows || '<div class="note2">No pre-approved answers for this role.</div>'}
+      ${blanks}
+      <div class="note2">Downloaded to ~/Downloads: ${(r.downloaded||[]).map(esc).join(", ")}.
+        The bot never submits — you review and apply yourself.</div>
+    </div>`;
+  const body=$("dBody");
+  const prev=body.querySelector(".applyhelp"); if(prev) prev.remove();
+  body.insertAdjacentHTML("afterbegin", html); body.scrollTop=0;
 }
 async function markApplied(id){
   await api().mark_applied(id,""); closeDrawer();
