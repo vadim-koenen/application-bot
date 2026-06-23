@@ -49,6 +49,11 @@ attestations must be the user's personal act.
   Deterministic, submit-free: pre-fills only approved answers, leaves every
   REVIEW_REQUIRED answer blank for the human, resolves the role's ATS `.txt`,
   flags non-form (recruiter-email) apply URLs. 6 tests (114 total).
+- **M26** — dock app: `make_macos_app.sh` builds a lightweight, dockable
+  `Job Apply Assistant.app` launcher (no py2app) into `~/Applications`; it execs
+  `run_app.sh`, which now sources `.env` and defaults to the real pipeline DB so
+  the window opens populated. `main` is the default branch; M1–M25 PRs closed
+  (consolidated into main).
 - **M25** — validated registry: live-probed the candidate boards; enabled the 11
   that returned a valid response (now **17 enabled**: Figma, Datadog, Highspot,
   Outreach, Ramp, Deel, Braze, Wiz, Vanta, 6sense, Brex, Samsara, Airtable, Asana,

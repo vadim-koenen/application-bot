@@ -7,6 +7,13 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# Load .env (APPLICATION_BOT_DB, SMTP_*, DIGEST_TO, …) if present.
+if [ -f .env ]; then set -a; . ./.env; set +a; fi
+# Default to the real pipeline DB if the operator hasn't pointed elsewhere.
+if [ -z "${APPLICATION_BOT_DB:-}" ] && [ -f data/private/vadim_pipeline.sqlite ]; then
+  export APPLICATION_BOT_DB="data/private/vadim_pipeline.sqlite"
+fi
+
 if [ -x .venv/bin/python3 ]; then
   PY=.venv/bin/python3
 else
