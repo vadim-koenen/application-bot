@@ -14,6 +14,7 @@ from application_bot.claims import (
     matched_approved_keywords,
     packet_claim_violations,
     safe_rewrites_for_gaps,
+    text_claim_violations,
     unresolved_claim_gaps,
 )
 from application_bot.answers import build_answer_draft
@@ -209,6 +210,7 @@ def generate_packet(
     evidence: dict[str, Any] | None = None,
     answer_bank: dict[str, Any] | None = None,
     assessment: PacketAssessment | None = None,
+    impact_highlights: list[str] | None = None,
 ) -> ApplicationPacket:
     inventory = inventory or load_claim_inventory(config["resume_claim_inventory"])
     evidence = evidence or load_claim_evidence(config["claim_evidence"])
@@ -294,16 +296,38 @@ def generate_packet(
         "I would welcome a conversation to assess mutual fit and the role’s "
         f"priorities.\n\nBest,\n{identity['name']}"
     )
-    cover_letter = (
-        f"Dear {job.company} Hiring Team,\n\n"
-        f"I am writing to express interest in the {job.title} role. My current "
-        f"professional identity is {business['approved_display']}. The approved "
-        f"positioning themes relevant to this posting include {', '.join(skills[:5])}.\n\n"
-        "This draft intentionally avoids background details and results that are "
-        "not present in the approved inventory. Any unsupported requirement is "
-        "listed as a claim gap for review.\n\n"
-        f"More information: {contact['website']}\n\nSincerely,\n{identity['name']}"
+    # Impact bullets are pulled from the approved résumé (selected_impact) by the
+    # caller, then filtered here against the same prohibited-claim patterns the
+    # packet auditor uses — so the cover letter can never assert anything the
+    # inventory hasn't approved, no matter what the caller passes in.
+    safe_highlights = [
+        line.strip()
+        for line in (impact_highlights or [])
+        if line and line.strip() and not text_claim_violations(line, inventory)
+    ][:3]
+    focus = ", ".join(skills[:3]) if skills else business["approved_display"]
+    maps = ", ".join(skills[:5]) if skills else focus
+    cover_parts = [
+        f"Dear {job.company} Hiring Team,",
+        (
+            f"I'm writing to apply for the {job.title} role. Through "
+            f"{business['approved_display']}, I architect and operate the revenue "
+            f"and GTM systems beneath the platform — {focus} — so marketing and "
+            "sales can move quickly and trust the same numbers."
+        ),
+    ]
+    if safe_highlights:
+        bullets = "\n".join(f"  • {line}" for line in safe_highlights)
+        cover_parts.append("A few results from that work:\n" + bullets)
+    cover_parts.append(
+        f"What lines up most directly with this role: {maps}. I'd welcome the "
+        f"chance to walk through how I'd approach it for {job.company}."
     )
+    cover_parts.append(
+        f"More context is at {contact['website']}. Thank you for your "
+        f"consideration.\n\nSincerely,\n{identity['name']}"
+    )
+    cover_letter = "\n\n".join(cover_parts)
     suggested_answers = {"Name": identity["name"], **build_answer_draft(answer_bank, evidence)}
     score_details = json.loads(job.score_details_json or "{}")
     why_fit = list(score_details.get("reasons") or [])

@@ -177,6 +177,9 @@
         background:#fafbfd; border:1px solid var(--line); border-radius:8px;
         padding:12px; max-height:220px; overflow:auto; }
   .risk { color:var(--hot); }
+  .dmsg { padding:0 22px; color:var(--good); font-size:12.5px; min-height:0; }
+  .dmsg:not(:empty) { padding:10px 22px 0; }
+  .dmsg.err { color:var(--hot); }
   .dfoot { padding:16px 22px; border-top:1px solid var(--line); display:flex;
            gap:10px; flex-wrap:wrap; align-items:center; }
   a.apply { background:var(--brand); color:#fff; font-weight:600; padding:9px 15px;
@@ -245,6 +248,7 @@
     <div class="dmeta" id="dMeta"></div>
   </div>
   <div class="dbody" id="dBody"></div>
+  <div class="dmsg" id="dMsg"></div>
   <div class="dfoot" id="dFoot"></div>
 </div>
 
@@ -479,6 +483,7 @@ function renderList(){
 async function openDrawer(id){
   $("scrim").classList.add("open"); $("drawer").classList.add("open");
   $("dBody").innerHTML = `<div class="empty">Loading…</div>`; $("dFoot").innerHTML="";
+  $("dMsg").textContent=""; $("dMsg").className="dmsg";
   const d = await api().job_detail(id);
   if(!d.ok){ $("dBody").innerHTML=`<div class="empty">${esc(d.error||"Not found")}</div>`; return; }
   $("dCo").textContent = d.source ? `${d.company} · ${d.source}` : d.company;
@@ -517,14 +522,28 @@ async function openDrawer(id){
 }
 function closeDrawer(){ $("scrim").classList.remove("open"); $("drawer").classList.remove("open"); }
 
+function drawerMsg(text, isErr){
+  const el=$("dMsg"); if(!el) return;
+  el.textContent=text; el.className="dmsg"+(isErr?" err":"");
+}
 async function openPdf(id,kind){
   const label = kind==="cover" ? "cover letter" : "résumé";
-  setStatus(`Tailoring ${label}…`);
-  const r = await api().open_artifact(id,kind);
-  setStatus(r.ok ? `Downloaded ${label} PDF to Downloads` : `Error: ${r.error||"could not open"}`);
+  drawerMsg(`Preparing ${label} PDF…`); setStatus(`Tailoring ${label}…`);
+  try {
+    const r = await api().open_artifact(id,kind);
+    const ok = r && r.ok;
+    const msg = ok ? `✓ Saved ${label} PDF to your Downloads folder` : `Error: ${(r&&r.error)||"could not open"}`;
+    drawerMsg(msg, !ok); setStatus(msg);
+  } catch(e){ drawerMsg("Error: "+e, true); }
 }
-async function markApplied(id){ await api().mark_applied(id,""); closeDrawer(); await load(); }
-async function markResponded(id){ await api().mark_responded(id,""); closeDrawer(); await load(); }
+async function markApplied(id){
+  await api().mark_applied(id,""); closeDrawer();
+  setStatus("✓ Marked applied — moved to Applied"); await load();
+}
+async function markResponded(id){
+  await api().mark_responded(id,""); closeDrawer();
+  setStatus("✓ Marked as replied — moved to Replies"); await load();
+}
 
 // ---------- data + nav ----------
 function setStatus(t){ $("statusMsg").textContent=t||""; }
@@ -534,7 +553,10 @@ async function load(){
     summary = await api().dashboard_summary();
     summary.registry = (await api().get_status()).registry;
     $("modePill").textContent="connected"; $("modePill").className="pill ok";
-  } catch(e){ return; }
+  } catch(e){
+    $("modePill").textContent="error"; $("modePill").className="pill bad";
+    setStatus("Refresh failed: "+e); return;
+  }
   const p=summary.pipeline;
   $("ct-new").textContent=p.new; $("ct-outstanding").textContent=p.outstanding;
   $("ct-applied").textContent=p.applied; $("ct-responded").textContent=p.responded;

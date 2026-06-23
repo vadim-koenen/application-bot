@@ -53,12 +53,25 @@ class JobAppAPI:
         database.initialize()
         return database
 
+    def _approved_impact(self) -> list[str]:
+        """Approved résumé wins (selected_impact) to feed the cover letter.
+
+        Pulled from the same approved master the résumé uses; generate_packet
+        re-filters these against the prohibited-claim patterns, so passing them
+        all is safe. Returns [] if the master is unavailable (e.g. in tests)."""
+        try:
+            master = load_resume_master(self.config["resume_master"])
+        except (OSError, ValueError, KeyError):
+            return []
+        return [str(item) for item in (master.get("selected_impact") or [])]
+
     def _cover_letter(self, database: Database, job: Any) -> str:
-        row = database.latest_packet(int(job.id))
-        if row:
-            return json.loads(row["packet_json"]).get("cover_letter", "")
+        # Always regenerate so the letter reflects the current role and the
+        # latest template (the older cached packets held the weak boilerplate).
         policy = evaluate_job_submission_policy(job, self.config)
-        return generate_packet(job, self.config, policy).cover_letter
+        return generate_packet(
+            job, self.config, policy, impact_highlights=self._approved_impact()
+        ).cover_letter
 
     @staticmethod
     def _grade(score: int | None) -> str | None:
@@ -120,8 +133,11 @@ class JobAppAPI:
     _WORTH_A_LOOK = {"APPLY_PRIORITY", "GOOD_FIT", "MAYBE"}
 
     def _is_new_fit(self, job: Any) -> bool:
-        """Fresh (within the discovery window) AND a plausible fit — the New
-        bucket. Keeps off-lane noise from these general boards off the tab."""
+        """Fresh (within the discovery window) AND a plausible fit AND not yet
+        acted on — the New bucket. Keeps off-lane noise off the tab, and drops
+        a role out of New the moment it's marked applied/responded."""
+        if str(job.status) in ("APPLIED", "RESPONDED"):
+            return False
         if is_fresh(job.posted_at, self.window_hours) is not True:
             return False
         return str(job.verdict) in self._WORTH_A_LOOK
