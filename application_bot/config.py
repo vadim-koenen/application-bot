@@ -104,9 +104,20 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "high_penalty": -15,
     },
     "packet_soft_requirement_claims": ["years_of_experience"],
+    # Hard location gate: a role must be remote OR in the DFW metroplex, else
+    # it scores NOT_WORTH_TIME regardless of fit.
+    "require_remote_or_dfw": True,
     "location_preferences": {
         "remote_us": ["remote", "united states", "us remote", "remote - us"],
-        "dfw": ["dallas", "plano", "dfw", "fort worth"],
+        "dfw": [
+            "dallas", "plano", "dfw", "fort worth", "metroplex", "irving",
+            "frisco", "mckinney", "arlington", "richardson", "garland", "denton",
+            "carrollton", "lewisville", "allen", "grand prairie", "addison",
+            "euless", "grapevine", "southlake", "flower mound", "the colony",
+            # DFW metroplex counties (Adzuna lists "City, County"); distinctive
+            # enough to avoid out-of-state collisions.
+            "tarrant", "collin", "rockwall", "kaufman",
+        ],
     },
     "salary_minimums": {
         "default": 140000,

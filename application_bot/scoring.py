@@ -175,6 +175,11 @@ def score_job(job: Job, config: dict[str, Any]) -> ScoreResult:
         )
     )
     generic_remote = job.location.strip().lower() in {"", "remote", "remote us"}
+    # Hard geography gate: must be remote or DFW metroplex.
+    require_geo = bool(config.get("require_remote_or_dfw", True))
+    location_ok = is_remote or is_dfw
+    if require_geo and not location_ok:
+        risk_flags.append("Off-geography: not remote and not DFW metroplex.")
     if is_remote and (explicit_us or generic_remote):
         dimensions["location"] = 12
         reasons.append("Remote US-compatible location.")
@@ -247,6 +252,8 @@ def score_job(job: Job, config: dict[str, Any]) -> ScoreResult:
     if str(job.status) == "BLOCKED":
         verdict = FitVerdict.BLOCKED
     elif off_lane_titles:
+        verdict = FitVerdict.NOT_WORTH_TIME
+    elif require_geo and not location_ok:
         verdict = FitVerdict.NOT_WORTH_TIME
     elif score >= 80:
         verdict = FitVerdict.APPLY_PRIORITY

@@ -54,6 +54,11 @@ attestations must be the user's personal act.
   `run_app.sh`, which now sources `.env` and defaults to the real pipeline DB so
   the window opens populated. `main` is the default branch; M1–M25 PRs closed
   (consolidated into main).
+- **M31** — hard location gate: a role must be **remote or DFW metroplex**, else
+  NOT_WORTH_TIME regardless of fit (`require_remote_or_dfw`, on by default;
+  `scoring.py`). DFW list expanded with metroplex suburbs + counties (Adzuna lists
+  "City, County"). Verified: onsite SF/Houston/Seattle/NYC roles excluded; remote +
+  DFW kept; the 13 curated Outstanding unaffected. 3 tests (144 total).
 - **M30** — scorer tightening: expanded `off_lane_titles` with off-lane *functions*
   (engineer, design, finance, legal, counsel, recruiter, account management,
   executive assistant, …) so Director/Head titles outside Vadim's lane resolve to
