@@ -1,46 +1,99 @@
 # Public GET-only ATS sources for measured dry-run discovery.
-# Enabled identifiers were validated on 2026-06-19. Discovery authority never
-# grants application-submission authority.
+# Curated 2026-06-22 toward Vadim's lane: B2B-SaaS / martech / RevOps / GTM-systems
+# employers that actually hire marketing-operations & revenue-operations leaders.
+# Each enabled board was live-probed and returned a valid response with in-lane
+# roles. Discovery authority never grants application-submission authority.
 companies:
-  - company: Figma
+  # --- Revenue / GTM tooling & sales-tech (highest-relevance employers) ---
+  - company: Klaviyo
     ats: greenhouse
-    board_token: figma
+    board_token: klaviyo
+    enabled: true
+    scan_limit: 12
+    target_relevance: [martech, lifecycle marketing, marketing operations, B2B SaaS]
+    notes: Live-validated 2026-06-22 (high in-lane density).
+    source_url: https://boards-api.greenhouse.io/v1/boards/klaviyo/jobs?content=true
+
+  - company: ZoomInfo
+    ats: greenhouse
+    board_token: zoominfo
+    enabled: true
+    scan_limit: 12
+    target_relevance: [revenue operations, GTM systems, demand generation, B2B SaaS]
+    notes: Live-validated 2026-06-22.
+    source_url: https://boards-api.greenhouse.io/v1/boards/zoominfo/jobs?content=true
+
+  - company: Salesloft
+    ats: greenhouse
+    board_token: salesloft
     enabled: true
     scan_limit: 10
-    target_relevance:
-      - B2B SaaS
-      - design technology
-      - growth marketing
-      - lifecycle
-      - marketing operations
-    notes: Validated public Greenhouse GET board.
-    source_url: https://boards-api.greenhouse.io/v1/boards/figma/jobs?content=true
+    target_relevance: [revenue operations, sales tech, GTM systems]
+    notes: Live-validated 2026-06-22.
+    source_url: https://boards-api.greenhouse.io/v1/boards/salesloft/jobs?content=true
 
-  - company: Datadog
+  - company: Apollo
     ats: greenhouse
-    board_token: datadog
+    board_token: apolloio
     enabled: true
     scan_limit: 10
-    target_relevance:
-      - data and analytics
-      - cybersecurity
-      - B2B SaaS
-      - demand generation
-      - marketing operations
-    notes: Validated public Greenhouse GET board.
-    source_url: https://boards-api.greenhouse.io/v1/boards/datadog/jobs?content=true
+    target_relevance: [revenue operations, GTM tooling, demand generation]
+    notes: Live-validated 2026-06-22.
+    source_url: https://boards-api.greenhouse.io/v1/boards/apolloio/jobs?content=true
 
+  - company: Clari
+    ats: lever
+    site: clari
+    enabled: true
+    scan_limit: 10
+    target_relevance: [revenue operations, forecasting, GTM systems]
+    notes: Live-validated 2026-06-22 (valid board; low volume).
+    source_url: https://api.lever.co/v0/postings/clari?mode=json
+
+  - company: Mutiny
+    ats: ashby
+    board_name: mutiny
+    enabled: true
+    scan_limit: 10
+    target_relevance: [martech, ABM, growth marketing, GTM systems]
+    notes: Live-validated 2026-06-22.
+    source_url: https://api.ashbyhq.com/posting-api/job-board/mutiny?includeCompensation=true
+
+  - company: Iterable
+    ats: greenhouse
+    board_token: iterable
+    enabled: true
+    scan_limit: 10
+    target_relevance: [martech, lifecycle marketing, marketing operations]
+    notes: Live-validated 2026-06-22.
+    source_url: https://boards-api.greenhouse.io/v1/boards/iterable/jobs?content=true
+
+  - company: Sprout Social
+    ats: greenhouse
+    board_token: sproutsocial
+    enabled: true
+    scan_limit: 10
+    target_relevance: [martech, marketing operations, B2B SaaS]
+    notes: Live-validated 2026-06-22.
+    source_url: https://boards-api.greenhouse.io/v1/boards/sproutsocial/jobs?content=true
+
+  - company: Hightouch
+    ats: ashby
+    board_name: hightouch
+    enabled: true
+    scan_limit: 10
+    target_relevance: [data activation, revenue operations, GTM systems]
+    notes: Live-validated 2026-06-22 (valid board; low volume).
+    source_url: https://api.ashbyhq.com/posting-api/job-board/hightouch?includeCompensation=true
+
+  # --- ABM / sales enablement (already validated, kept) ---
   - company: Highspot
     ats: lever
     site: highspot
     enabled: true
     scan_limit: 10
-    target_relevance:
-      - revenue and GTM tooling
-      - B2B SaaS
-      - demand generation
-      - revenue systems
-    notes: Validated public Lever GET board.
+    target_relevance: [sales enablement, revenue systems, B2B SaaS]
+    notes: Validated public Lever board.
     source_url: https://api.lever.co/v0/postings/highspot?mode=json
 
   - company: Outreach
@@ -48,233 +101,262 @@ companies:
     site: outreach
     enabled: true
     scan_limit: 10
-    target_relevance:
-      - revenue and GTM tooling
-      - B2B SaaS
-      - GTM strategy
-      - revenue systems
-    notes: Validated public Lever GET board.
+    target_relevance: [revenue operations, sales engagement, GTM strategy]
+    notes: Validated public Lever board.
     source_url: https://api.lever.co/v0/postings/outreach?mode=json
-
-  - company: Ramp
-    ats: ashby
-    board_name: ramp
-    enabled: true
-    scan_limit: 10
-    target_relevance:
-      - fintech
-      - high-growth software
-      - growth marketing
-      - lifecycle
-    notes: Validated public Ashby GET board.
-    source_url: https://api.ashbyhq.com/posting-api/job-board/ramp?includeCompensation=true
-
-  - company: Deel
-    ats: ashby
-    board_name: deel
-    enabled: true
-    scan_limit: 10
-    target_relevance:
-      - B2B SaaS
-      - high-growth software
-      - demand generation
-      - marketing operations
-    notes: Validated public Ashby GET board.
-    source_url: https://api.ashbyhq.com/posting-api/job-board/deel?includeCompensation=true
-
-  - company: Braze
-    ats: greenhouse
-    board_token: braze
-    enabled: true
-    scan_limit: 10
-    target_relevance:
-      - martech
-      - lifecycle marketing
-      - growth marketing
-    notes: Likely public board; verify the current identifier before enabling.
-    source_url: https://boards-api.greenhouse.io/v1/boards/braze/jobs?content=true
-
-  - company: Wiz
-    ats: greenhouse
-    board_token: wizinc
-    enabled: true
-    scan_limit: 10
-    target_relevance:
-      - cybersecurity
-      - B2B SaaS
-      - demand generation
-    notes: Likely public board; verify the current identifier before enabling.
-    source_url: https://boards-api.greenhouse.io/v1/boards/wizinc/jobs?content=true
-
-  - company: Gong
-    ats: lever
-    site: gong
-    enabled: false
-    scan_limit: 10
-    target_relevance:
-      - revenue and GTM tooling
-      - AI
-      - B2B SaaS
-    notes: Likely public board; verify the current identifier before enabling.
-    source_url: https://api.lever.co/v0/postings/gong?mode=json
-
-  - company: Vanta
-    ats: ashby
-    board_name: vanta
-    enabled: true
-    scan_limit: 10
-    target_relevance:
-      - cybersecurity
-      - B2B SaaS
-      - high-growth software
-    notes: Likely public board; verify the current identifier before enabling.
-    source_url: https://api.ashbyhq.com/posting-api/job-board/vanta?includeCompensation=true
-
-  - company: dbt Labs
-    ats: greenhouse
-    board_token: dbtlabs
-    enabled: false
-    scan_limit: 10
-    target_relevance:
-      - data and analytics
-      - B2B SaaS
-      - developer tooling
-    notes: Likely public board; verify the current identifier before enabling.
-    source_url: https://boards-api.greenhouse.io/v1/boards/dbtlabs/jobs?content=true
 
   - company: 6sense
     ats: greenhouse
     board_token: 6sense
     enabled: true
     scan_limit: 10
-    target_relevance:
-      - martech
-      - ABM and intent
-      - revenue and GTM tooling
-    notes: Likely public board; verify the current identifier before enabling.
+    target_relevance: [martech, ABM and intent, revenue and GTM tooling]
+    notes: Live-validated 2026-06-22.
     source_url: https://boards-api.greenhouse.io/v1/boards/6sense/jobs?content=true
 
-  # --- Candidate expansion (RevOps / martech / marketing-ops / GTM systems).
-  # Added + live-validated 2026-06-22. Enabled boards returned a valid response;
-  # the remaining disabled ones (Gong, dbt Labs, Snowflake, Netlify, Hex) 404'd
-  # on their guessed token and need the correct identifier before enabling.
+  - company: Braze
+    ats: greenhouse
+    board_token: braze
+    enabled: true
+    scan_limit: 10
+    target_relevance: [martech, lifecycle marketing, growth marketing]
+    notes: Live-validated 2026-06-22.
+    source_url: https://boards-api.greenhouse.io/v1/boards/braze/jobs?content=true
+
+  # --- B2B SaaS with strong marketing-ops / RevOps orgs ---
+  - company: Pendo
+    ats: greenhouse
+    board_token: pendo
+    enabled: true
+    scan_limit: 10
+    target_relevance: [product analytics, marketing operations, B2B SaaS]
+    notes: Live-validated 2026-06-22.
+    source_url: https://boards-api.greenhouse.io/v1/boards/pendo/jobs?content=true
+
+  - company: Smartsheet
+    ats: greenhouse
+    board_token: smartsheet
+    enabled: true
+    scan_limit: 12
+    target_relevance: [marketing operations, revenue operations, B2B SaaS]
+    notes: Live-validated 2026-06-22.
+    source_url: https://boards-api.greenhouse.io/v1/boards/smartsheet/jobs?content=true
+
+  - company: Twilio
+    ats: greenhouse
+    board_token: twilio
+    enabled: true
+    scan_limit: 12
+    target_relevance: [marketing operations, demand generation, B2B SaaS]
+    notes: Live-validated 2026-06-22.
+    source_url: https://boards-api.greenhouse.io/v1/boards/twilio/jobs?content=true
+
+  - company: Gusto
+    ats: greenhouse
+    board_token: gusto
+    enabled: true
+    scan_limit: 10
+    target_relevance: [marketing operations, lifecycle, B2B SaaS]
+    notes: Live-validated 2026-06-22.
+    source_url: https://boards-api.greenhouse.io/v1/boards/gusto/jobs?content=true
+
+  - company: Lattice
+    ats: greenhouse
+    board_token: lattice
+    enabled: true
+    scan_limit: 10
+    target_relevance: [marketing operations, demand generation, B2B SaaS]
+    notes: Live-validated 2026-06-22.
+    source_url: https://boards-api.greenhouse.io/v1/boards/lattice/jobs?content=true
+
+  - company: Amplitude
+    ats: greenhouse
+    board_token: amplitude
+    enabled: true
+    scan_limit: 10
+    target_relevance: [product analytics, marketing operations, B2B SaaS]
+    notes: Live-validated 2026-06-22.
+    source_url: https://boards-api.greenhouse.io/v1/boards/amplitude/jobs?content=true
+
+  - company: Mixpanel
+    ats: greenhouse
+    board_token: mixpanel
+    enabled: true
+    scan_limit: 10
+    target_relevance: [product analytics, marketing operations, growth]
+    notes: Live-validated 2026-06-22.
+    source_url: https://boards-api.greenhouse.io/v1/boards/mixpanel/jobs?content=true
+
+  - company: Webflow
+    ats: greenhouse
+    board_token: webflow
+    enabled: true
+    scan_limit: 10
+    target_relevance: [growth marketing, marketing operations, B2B SaaS]
+    notes: Live-validated 2026-06-22.
+    source_url: https://boards-api.greenhouse.io/v1/boards/webflow/jobs?content=true
+
+  - company: Vercel
+    ats: greenhouse
+    board_token: vercel
+    enabled: true
+    scan_limit: 10
+    target_relevance: [developer marketing, growth, marketing operations]
+    notes: Live-validated 2026-06-22.
+    source_url: https://boards-api.greenhouse.io/v1/boards/vercel/jobs?content=true
+
+  - company: Ramp
+    ats: ashby
+    board_name: ramp
+    enabled: true
+    scan_limit: 10
+    target_relevance: [fintech, growth marketing, lifecycle, marketing operations]
+    notes: Validated public Ashby board.
+    source_url: https://api.ashbyhq.com/posting-api/job-board/ramp?includeCompensation=true
+
   - company: Brex
     ats: greenhouse
     board_token: brex
     enabled: true
     scan_limit: 10
-    target_relevance:
-      - fintech
-      - B2B SaaS
-      - marketing operations
-      - revenue systems
-    notes: Candidate; verify the current identifier before enabling.
+    target_relevance: [fintech, marketing operations, revenue systems]
+    notes: Live-validated 2026-06-22.
     source_url: https://boards-api.greenhouse.io/v1/boards/brex/jobs?content=true
 
-  - company: Samsara
-    ats: greenhouse
-    board_token: samsara
+  - company: Deel
+    ats: ashby
+    board_name: deel
     enabled: true
     scan_limit: 10
-    target_relevance:
-      - B2B SaaS
-      - demand generation
-      - marketing operations
-    notes: Candidate; verify the current identifier before enabling.
-    source_url: https://boards-api.greenhouse.io/v1/boards/samsara/jobs?content=true
+    target_relevance: [B2B SaaS, demand generation, marketing operations]
+    notes: Validated public Ashby board.
+    source_url: https://api.ashbyhq.com/posting-api/job-board/deel?includeCompensation=true
 
-  - company: Snowflake
-    ats: greenhouse
-    board_token: snowflakecomputing
-    enabled: false
-    scan_limit: 10
-    target_relevance:
-      - data and analytics
-      - B2B SaaS
-      - revenue operations
-    notes: Candidate; verify the current identifier before enabling.
-    source_url: https://boards-api.greenhouse.io/v1/boards/snowflakecomputing/jobs?content=true
-
-  - company: Airtable
-    ats: greenhouse
-    board_token: airtable
+  - company: Vanta
+    ats: ashby
+    board_name: vanta
     enabled: true
     scan_limit: 10
-    target_relevance:
-      - B2B SaaS
-      - growth marketing
-      - marketing operations
-    notes: Candidate; verify the current identifier before enabling.
-    source_url: https://boards-api.greenhouse.io/v1/boards/airtable/jobs?content=true
+    target_relevance: [security SaaS, demand generation, marketing operations]
+    notes: Live-validated 2026-06-22.
+    source_url: https://api.ashbyhq.com/posting-api/job-board/vanta?includeCompensation=true
 
   - company: Asana
     ats: greenhouse
     board_token: asana
     enabled: true
     scan_limit: 10
-    target_relevance:
-      - B2B SaaS
-      - demand generation
-      - marketing operations
-    notes: Candidate; verify the current identifier before enabling.
+    target_relevance: [B2B SaaS, demand generation, marketing operations]
+    notes: Live-validated 2026-06-22.
     source_url: https://boards-api.greenhouse.io/v1/boards/asana/jobs?content=true
 
-  - company: Plaid
-    ats: lever
-    site: plaid
-    enabled: true
-    scan_limit: 10
-    target_relevance:
-      - fintech
-      - B2B SaaS
-      - revenue systems
-    notes: Candidate; verify the current identifier before enabling.
-    source_url: https://api.lever.co/v0/postings/plaid?mode=json
-
-  - company: Netlify
-    ats: lever
-    site: netlify
+  # --- Retired: general eng/security/design/fintech-eng boards (too off-lane
+  # for marketing-ops/RevOps; re-enable only if you want broader coverage) ---
+  - company: Figma
+    ats: greenhouse
+    board_token: figma
     enabled: false
     scan_limit: 10
-    target_relevance:
-      - developer tooling
-      - B2B SaaS
-      - marketing operations
-    notes: Candidate; verify the current identifier before enabling.
-    source_url: https://api.lever.co/v0/postings/netlify?mode=json
+    target_relevance: [design technology, B2B SaaS]
+    notes: Retired 2026-06-22 — design/eng heavy, off-lane.
+    source_url: https://boards-api.greenhouse.io/v1/boards/figma/jobs?content=true
 
-  - company: Mercury
-    ats: ashby
-    board_name: mercury
-    enabled: true
+  - company: Datadog
+    ats: greenhouse
+    board_token: datadog
+    enabled: false
     scan_limit: 10
-    target_relevance:
-      - fintech
-      - high-growth software
-      - growth marketing
-    notes: Candidate; verify the current identifier before enabling.
-    source_url: https://api.ashbyhq.com/posting-api/job-board/mercury?includeCompensation=true
+    target_relevance: [observability, B2B SaaS]
+    notes: Retired 2026-06-22 — observability/eng heavy.
+    source_url: https://boards-api.greenhouse.io/v1/boards/datadog/jobs?content=true
+
+  - company: Wiz
+    ats: greenhouse
+    board_token: wizinc
+    enabled: false
+    scan_limit: 10
+    target_relevance: [cybersecurity, B2B SaaS]
+    notes: Retired 2026-06-22 — security/eng heavy.
+    source_url: https://boards-api.greenhouse.io/v1/boards/wizinc/jobs?content=true
+
+  - company: Samsara
+    ats: greenhouse
+    board_token: samsara
+    enabled: false
+    scan_limit: 10
+    target_relevance: [IoT, B2B SaaS]
+    notes: Retired 2026-06-22 — IoT/eng heavy.
+    source_url: https://boards-api.greenhouse.io/v1/boards/samsara/jobs?content=true
 
   - company: Linear
     ats: ashby
     board_name: linear
-    enabled: true
-    scan_limit: 10
-    target_relevance:
-      - developer tooling
-      - high-growth software
-      - growth marketing
-    notes: Candidate; verify the current identifier before enabling.
-    source_url: https://api.ashbyhq.com/posting-api/job-board/linear?includeCompensation=true
-
-  - company: Hex
-    ats: ashby
-    board_name: hex
     enabled: false
     scan_limit: 10
-    target_relevance:
-      - data and analytics
-      - B2B SaaS
-      - revenue operations
-    notes: Candidate; verify the current identifier before enabling.
-    source_url: https://api.ashbyhq.com/posting-api/job-board/hex?includeCompensation=true
+    target_relevance: [developer tooling]
+    notes: Retired 2026-06-22 — dev tool, off-lane.
+    source_url: https://api.ashbyhq.com/posting-api/job-board/linear?includeCompensation=true
+
+  - company: Plaid
+    ats: lever
+    site: plaid
+    enabled: false
+    scan_limit: 10
+    target_relevance: [fintech]
+    notes: Retired 2026-06-22 — fintech eng heavy.
+    source_url: https://api.lever.co/v0/postings/plaid?mode=json
+
+  - company: Mercury
+    ats: ashby
+    board_name: mercury
+    enabled: false
+    scan_limit: 10
+    target_relevance: [fintech]
+    notes: Retired 2026-06-22 — fintech eng heavy.
+    source_url: https://api.ashbyhq.com/posting-api/job-board/mercury?includeCompensation=true
+
+  # --- Candidates that 404'd on a guessed token; need the correct identifier ---
+  - company: Gong
+    ats: lever
+    site: gong
+    enabled: false
+    scan_limit: 10
+    target_relevance: [revenue and GTM tooling, B2B SaaS]
+    notes: 404 on guessed token; verify before enabling.
+    source_url: https://api.lever.co/v0/postings/gong?mode=json
+
+  - company: Demandbase
+    ats: greenhouse
+    board_token: demandbase
+    enabled: false
+    scan_limit: 10
+    target_relevance: [martech, ABM, revenue and GTM tooling]
+    notes: 404 on guessed token; verify before enabling.
+    source_url: https://boards-api.greenhouse.io/v1/boards/demandbase/jobs?content=true
+
+  - company: Notion
+    ats: greenhouse
+    board_token: notion
+    enabled: false
+    scan_limit: 10
+    target_relevance: [B2B SaaS, marketing operations]
+    notes: 404 on guessed token; verify before enabling.
+    source_url: https://boards-api.greenhouse.io/v1/boards/notion/jobs?content=true
+
+  - company: Rippling
+    ats: greenhouse
+    board_token: rippling
+    enabled: false
+    scan_limit: 10
+    target_relevance: [B2B SaaS, marketing operations]
+    notes: 404 on guessed token; verify before enabling.
+    source_url: https://boards-api.greenhouse.io/v1/boards/rippling/jobs?content=true
+
+  - company: dbt Labs
+    ats: greenhouse
+    board_token: dbtlabs
+    enabled: false
+    scan_limit: 10
+    target_relevance: [data and analytics, B2B SaaS]
+    notes: 404 on guessed token; verify before enabling.
+    source_url: https://boards-api.greenhouse.io/v1/boards/dbtlabs/jobs?content=true
