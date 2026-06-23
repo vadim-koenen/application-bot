@@ -54,6 +54,12 @@ attestations must be the user's personal act.
   `run_app.sh`, which now sources `.env` and defaults to the real pipeline DB so
   the window opens populated. `main` is the default branch; M1–M25 PRs closed
   (consolidated into main).
+- **M32** — JSearch discovery (LinkedIn/Indeed/ZipRecruiter, legitimately):
+  `JSearchAdapter` + `pipeline.discover_jsearch` pull via JSearch/RapidAPI, which
+  aggregates Google-for-Jobs (LinkedIn/Indeed/ZipRecruiter/Glassdoor) — no scraping,
+  no account-ban risk. Wired into the app Discover + `scan-jsearch` CLI; no-op
+  without `RAPIDAPI_KEY`. We do NOT scrape those sites directly (ToS/bans; the
+  built-in linkedin/indeed/zip adapters stay import-only). 3 tests (147 total).
 - **M31** — hard location gate: a role must be **remote or DFW metroplex**, else
   NOT_WORTH_TIME regardless of fit (`require_remote_or_dfw`, on by default;
   `scoring.py`). DFW list expanded with metroplex suburbs + counties (Adzuna lists

@@ -10,8 +10,10 @@ from application_bot.adapters import (
     AdzunaAdapter,
     AshbyAdapter,
     GreenhouseAdapter,
+    JSearchAdapter,
     LeverAdapter,
 )
+from application_bot.adapters.jsearch import rapidapi_transport
 from application_bot.config import (
     load_answer_bank,
     load_claim_evidence,
@@ -203,6 +205,69 @@ def discover_adzuna(
             scored += 1
     return {
         "source": "adzuna",
+        "enabled": True,
+        "queries": len(queries),
+        "jobs_seen": seen,
+        "jobs_inserted": inserted,
+        "dropped_stale": dropped_stale,
+        "scored": scored,
+    }
+
+
+DEFAULT_JSEARCH_QUERIES = [
+    "marketing operations director",
+    "revenue operations director",
+    "marketing operations manager",
+    "marketing technology director",
+    "gtm systems",
+]
+
+
+def discover_jsearch(
+    database: Database,
+    config: dict[str, Any],
+    *,
+    hours: int = 24,
+    queries: list[str] | None = None,
+    transport: Any = None,
+    api_key: str | None = None,
+    host: str | None = None,
+) -> dict[str, Any]:
+    """Market-wide discovery via JSearch (Google-for-Jobs: LinkedIn/Indeed/
+    ZipRecruiter/Glassdoor). No-op without RAPIDAPI_KEY. Keeps fresh, scores,
+    inserts. The geography gate still applies downstream.
+    """
+    api_key = api_key or os.getenv("RAPIDAPI_KEY")
+    if not api_key:
+        return {"source": "jsearch", "enabled": False,
+                "reason": "RAPIDAPI_KEY not set"}
+    queries = queries or config.get("jsearch_queries") or DEFAULT_JSEARCH_QUERIES
+    if transport is None:
+        host = host or os.getenv("RAPIDAPI_JSEARCH_HOST", "jsearch.p.rapidapi.com")
+        transport = rapidapi_transport(api_key, host)
+    adapter = JSearchAdapter(transport=transport)
+    date_posted = "today" if hours <= 24 else "3days" if hours <= 72 else "week"
+    now = datetime.now(UTC)
+    seen = inserted = dropped_stale = 0
+    for query in queries:
+        try:
+            jobs = adapter.discover_jobs(what=query, date_posted=date_posted)
+        except (OSError, ValueError):
+            continue
+        for job in jobs:
+            seen += 1
+            if is_fresh(job.posted_at, hours, now=now) is not True:
+                dropped_stale += 1
+                continue
+            _, created = database.upsert_job(job)
+            inserted += int(created)
+    scored = 0
+    for job in database.list_jobs():
+        if str(job.source) == "jsearch" and job.score is None:
+            database.save_score(int(job.id), score_job(job, config))
+            scored += 1
+    return {
+        "source": "jsearch",
         "enabled": True,
         "queries": len(queries),
         "jobs_seen": seen,
