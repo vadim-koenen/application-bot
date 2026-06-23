@@ -54,6 +54,11 @@ attestations must be the user's personal act.
   `run_app.sh`, which now sources `.env` and defaults to the real pipeline DB so
   the window opens populated. `main` is the default branch; M1–M25 PRs closed
   (consolidated into main).
+- **M30** — scorer tightening: expanded `off_lane_titles` with off-lane *functions*
+  (engineer, design, finance, legal, counsel, recruiter, account management,
+  executive assistant, …) so Director/Head titles outside Vadim's lane resolve to
+  NOT_WORTH_TIME instead of MAYBE. New tab dropped from noisy to 5 genuinely in-lane
+  roles; the 13 curated Outstanding are unaffected. 2 tests (141 total).
 - **M29** — Adzuna market-wide discovery: `AdzunaAdapter` + `pipeline.discover_adzuna`
   search the whole market (not just registry boards) for in-lane titles posted in
   the last N hours, keep fresh, score, insert. Wired into the app's Discover

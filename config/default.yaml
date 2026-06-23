@@ -72,6 +72,25 @@ off_lane_titles:
   - brand marketing
   - field marketing
   - consumer growth
+  # Off-lane functions that slip through on a Director/Head title.
+  - engineer
+  - design
+  - finance
+  - accounting
+  - controller
+  - legal
+  - counsel
+  - attorney
+  - litigation
+  - recruiter
+  - talent acquisition
+  - people operations
+  - human resources
+  - account management
+  - account executive
+  - solutions architect
+  - executive assistant
+  - administrative assistant
 
 role_mismatch_penalty: -30
 
