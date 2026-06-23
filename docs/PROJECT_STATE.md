@@ -54,6 +54,12 @@ attestations must be the user's personal act.
   `run_app.sh`, which now sources `.env` and defaults to the real pipeline DB so
   the window opens populated. `main` is the default branch; M1–M25 PRs closed
   (consolidated into main).
+- **M29** — Adzuna market-wide discovery: `AdzunaAdapter` + `pipeline.discover_adzuna`
+  search the whole market (not just registry boards) for in-lane titles posted in
+  the last N hours, keep fresh, score, insert. Wired into the app's Discover
+  (no-op without `ADZUNA_APP_ID`/`ADZUNA_APP_KEY`) + `scan-adzuna` CLI. Complements
+  the ATS boards (depth) with breadth. Note: Adzuna descriptions are truncated, so
+  these score rougher — discovery leads. 4 tests (139 total). Needs a free key.
 - **M28** — app = apply hub, email removed. Each role shows a direct **Apply →**
   link to the company form, **Résumé PDF** / **Cover Letter PDF** buttons (tailored
   on click and opened in the viewer to save/print), and **Mark applied**. Dropped

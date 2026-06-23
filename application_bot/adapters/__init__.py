@@ -1,3 +1,4 @@
+from .adzuna import AdzunaAdapter
 from .ashby import AshbyAdapter
 from .base import SourceAdapter
 from .email_to_apply import EmailToApplyAdapter
@@ -11,6 +12,7 @@ from .review_queues import (
 )
 
 __all__ = [
+    "AdzunaAdapter",
     "AshbyAdapter",
     "EmailToApplyAdapter",
     "GreenhouseAdapter",

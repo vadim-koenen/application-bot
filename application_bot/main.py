@@ -48,7 +48,12 @@ from application_bot.packets import (
     packet_to_dict,
 )
 from application_bot.pdf import export_application_pdfs
-from application_bot.pipeline import refresh_packets, run_dry_pipeline, scan_registry
+from application_bot.pipeline import (
+    discover_adzuna,
+    refresh_packets,
+    run_dry_pipeline,
+    scan_registry,
+)
 from application_bot.resume import (
     export_ats_resume,
     load_resume_master,
@@ -451,6 +456,19 @@ def command_ats_resume(args: argparse.Namespace, config: dict[str, Any]) -> int:
     return 0
 
 
+def command_scan_adzuna(args: argparse.Namespace, config: dict[str, Any]) -> int:
+    database = _db(args, config)
+    _print(
+        discover_adzuna(
+            database,
+            config,
+            hours=args.hours,
+            queries=args.what or None,
+        )
+    )
+    return 0
+
+
 def command_make_pdf(args: argparse.Namespace, config: dict[str, Any]) -> int:
     database = _db(args, config)
     job = database.get_job(args.job_id)
@@ -711,6 +729,19 @@ def build_parser() -> argparse.ArgumentParser:
     ats_resume.add_argument("--job-id", type=int)
     ats_resume.add_argument("--resume-master", dest="resume_master")
     ats_resume.set_defaults(handler=command_ats_resume)
+
+    scan_adzuna = subparsers.add_parser(
+        "scan-adzuna",
+        help="Market-wide last-24h discovery via the Adzuna API (needs ADZUNA_* env)",
+    )
+    scan_adzuna.add_argument("--hours", type=int, default=24)
+    scan_adzuna.add_argument(
+        "--what",
+        action="append",
+        help="Search term (repeatable); defaults to in-lane queries",
+    )
+    scan_adzuna.add_argument("--db")
+    scan_adzuna.set_defaults(handler=command_scan_adzuna)
 
     make_pdf = subparsers.add_parser(
         "make-pdf",

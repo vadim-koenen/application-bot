@@ -22,7 +22,7 @@ from application_bot.config import load_config
 from application_bot.database import Database
 from application_bot.packets import generate_packet
 from application_bot.pdf import export_application_pdfs
-from application_bot.pipeline import is_fresh, run_dry_pipeline
+from application_bot.pipeline import discover_adzuna, is_fresh, run_dry_pipeline
 from application_bot.policy import evaluate_job_submission_policy
 from application_bot.resume import load_resume_master, render_ats_resume_text
 
@@ -127,13 +127,19 @@ class JobAppAPI:
             limit=int(limit),
             posted_within_hours=int(hours),
         )
+        # Market-wide top-up via Adzuna (no-op unless ADZUNA_* keys are set).
+        adzuna = discover_adzuna(self._db(), self.config, hours=int(hours))
+        inserted = (result.get("jobs_inserted") or 0) + (
+            adzuna.get("jobs_inserted", 0) if adzuna.get("enabled") else 0
+        )
         return {
             "ok": True,
-            "jobs_inserted": result.get("jobs_inserted"),
+            "jobs_inserted": inserted,
             "dropped_stale": result.get("dropped_stale"),
             "dropped_undated": result.get("dropped_undated"),
             "packets_ready": result.get("packets_ready"),
             "network_status": result.get("network_status"),
+            "adzuna": adzuna,
         }
 
     def make_artifacts(self, job_id: int) -> dict[str, Any]:
