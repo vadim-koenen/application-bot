@@ -104,6 +104,8 @@ years_requirement_scoring:
 packet_soft_requirement_claims:
   - years_of_experience
 
+# Hard location gate: a role must be remote OR in the DFW metroplex.
+require_remote_or_dfw: true
 location_preferences:
   remote_us:
     - remote
@@ -115,6 +117,29 @@ location_preferences:
     - plano
     - dfw
     - fort worth
+    - metroplex
+    - irving
+    - frisco
+    - mckinney
+    - arlington
+    - richardson
+    - garland
+    - denton
+    - carrollton
+    - lewisville
+    - allen
+    - grand prairie
+    - addison
+    - euless
+    - grapevine
+    - southlake
+    - flower mound
+    - the colony
+    # DFW metroplex counties (Adzuna lists "City, County").
+    - tarrant
+    - collin
+    - rockwall
+    - kaufman
 
 salary_minimums:
   default: 140000
