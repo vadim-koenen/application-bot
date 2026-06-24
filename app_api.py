@@ -23,11 +23,13 @@ from typing import Any
 from application_bot.assisted_apply import build_fill_plan
 from application_bot.config import load_config
 from application_bot.database import Database
+from application_bot.models import utc_now
 from application_bot.packets import generate_packet, packet_to_dict
 from application_bot.pdf import export_application_pdfs
 from application_bot.pipeline import (
     discover_adzuna,
     discover_jsearch,
+    ingest_manual_job,
     is_fresh,
     run_dry_pipeline,
 )
@@ -196,6 +198,50 @@ class JobAppAPI:
             "adzuna": adzuna,
             "jsearch": jsearch,
         }
+
+    def add_job(
+        self,
+        title: str,
+        company: str,
+        url: str = "",
+        location: str = "",
+        description: str = "",
+    ) -> dict[str, Any]:
+        """Manually capture a role the automated sources missed (paste-in).
+
+        For roles spotted anywhere (e.g. LinkedIn): the operator supplies the
+        details and the app scores + tailors it like any other role. The app
+        does NOT fetch/scrape the URL — only what's pasted is used, which keeps
+        this ToS-clean. Returns where the role landed and its fit grade so the
+        UI can jump straight to it.
+        """
+        title = (title or "").strip()
+        company = (company or "").strip()
+        if not title or not company:
+            return {"ok": False, "error": "Title and company are required."}
+        url = (url or "").strip()
+        payload = {
+            "title": title,
+            "company": company,
+            "apply_url": url,
+            "source_url": url,
+            "location": (location or "").strip(),
+            "description": (description or "").strip(),
+            # Freshly captured now, so a fit lands in the New bucket.
+            "posted_at": utc_now(),
+        }
+        result = ingest_manual_job(
+            self._db(), self.config, payload, output_root=self.export_root
+        )
+        if not result.get("ok"):
+            return result
+        ready = str(result.get("packet_status")) == "PACKET_READY"
+        worth = str(result.get("verdict")) in self._WORTH_A_LOOK
+        result["grade"] = self._grade(result.get("score"))
+        result["bucket"] = (
+            "outstanding" if ready else "new" if worth else "review"
+        )
+        return result
 
     def make_artifacts(self, job_id: int) -> dict[str, Any]:
         database = self._db()
