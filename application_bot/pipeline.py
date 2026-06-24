@@ -14,6 +14,7 @@ from application_bot.adapters import (
     LeverAdapter,
 )
 from application_bot.adapters.jsearch import rapidapi_transport
+from application_bot.adapters.manual_json import ManualJsonAdapter
 from application_bot.config import (
     load_answer_bank,
     load_claim_evidence,
@@ -400,6 +401,70 @@ def scan_registry(
         "posted_within_hours": posted_within_hours,
         "dropped_stale": dropped_stale,
         "dropped_undated": dropped_undated,
+    }
+
+
+def ingest_manual_job(
+    database: Database,
+    config: dict[str, Any],
+    payload: dict[str, Any],
+    *,
+    output_root: str | Path,
+) -> dict[str, Any]:
+    """Ingest one operator-pasted job: normalize → score → assess → packet.
+
+    Human-initiated capture for roles the automated sources miss (e.g. a role
+    spotted on LinkedIn). ToS-clean: the operator supplies the details — we do
+    NOT fetch or scrape the source URL. Mirrors the per-job path in
+    ``run_dry_pipeline`` so the role lands in the pipeline scored and, when
+    claim-safe, packet-ready.
+    """
+    payload = {**payload}
+    payload.setdefault("source", "manual_add")
+    job = ManualJsonAdapter().normalize_job(payload)
+    job_id, _ = database.upsert_job(job)
+    saved = database.get_job(job_id)
+
+    database.save_score(job_id, score_job(saved, config))
+    saved = database.get_job(job_id)
+
+    policy = evaluate_job_submission_policy(saved, config)
+    inventory = load_claim_inventory(config["resume_claim_inventory"])
+    evidence = load_claim_evidence(config["claim_evidence"])
+    answer_bank = load_answer_bank(config["application_answer_bank"])
+    assessment = assess_packet(saved, config, policy, inventory, evidence)
+    database.save_packet_assessment(
+        job_id,
+        packet_status=str(assessment.status),
+        claim_gaps=assessment.claim_gaps,
+        reason_codes=assessment.reason_codes,
+        recommended_next_action=assessment.recommended_next_action,
+        submission_policy=str(policy.decision),
+    )
+    if assessment.should_export:
+        packet = generate_packet(
+            saved,
+            config,
+            policy,
+            inventory=inventory,
+            evidence=evidence,
+            answer_bank=answer_bank,
+            assessment=assessment,
+        )
+        category = "ready" if str(assessment.status) == "PACKET_READY" else "review"
+        path = export_packet(saved, packet, Path(output_root) / "packets" / category)
+        database.save_packet(job_id, str(path), packet_to_dict(packet))
+
+    saved = database.get_job(job_id)
+    return {
+        "ok": True,
+        "job_id": job_id,
+        "company": saved.company,
+        "title": saved.title,
+        "score": saved.score,
+        "verdict": saved.verdict,
+        "packet_status": saved.packet_status,
+        "status": saved.status,
     }
 
 

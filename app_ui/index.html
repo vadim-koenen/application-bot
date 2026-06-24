@@ -192,6 +192,24 @@
                   color:var(--brand); margin:0 0 10px; }
   .applyhelp .kv .kk { color:var(--muted); }
   .note2 { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.5; }
+
+  /* ---- Add-job modal ---- */
+  .modal { position:fixed; top:50%; left:50%; transform:translate(-50%,-48%) scale(.98);
+           width:560px; max-width:94vw; max-height:90vh; overflow:auto; background:var(--panel);
+           border-radius:14px; box-shadow:0 18px 60px rgba(16,35,63,.28); z-index:50;
+           padding:24px 26px; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; }
+  .modal.open { opacity:1; pointer-events:auto; transform:translate(-50%,-50%) scale(1); }
+  .modal h3 { margin:0 0 6px; font-size:18px; font-weight:700; }
+  .modalsub { color:var(--muted); font-size:12.5px; line-height:1.5; margin:0 0 18px; }
+  .mfield { margin-bottom:14px; }
+  .mfield label { display:block; font-size:11px; text-transform:uppercase; letter-spacing:.5px;
+                  color:var(--muted); margin-bottom:6px; }
+  .mfield input, .mfield textarea { width:100%; padding:9px 11px; border:1px solid var(--line);
+           border-radius:8px; background:#fff; color:var(--ink); font-size:13px;
+           font-family:inherit; resize:vertical; }
+  .mrow { display:flex; gap:14px; } .mrow .mfield { flex:1; }
+  .adderr { color:var(--hot); font-size:12.5px; min-height:0; margin-bottom:8px; }
+  .mfoot { display:flex; justify-content:flex-end; gap:10px; margin-top:6px; }
 </style>
 </head>
 <body>
@@ -238,6 +256,7 @@
       </div>
       <div class="spacer"></div>
       <span id="statusMsg" class="status-msg"></span>
+      <button class="ghost" id="addJobBtn">+ Add job</button>
       <button class="ghost" id="refreshBtn">Refresh</button>
       <button class="act" id="discoverBtn">Discover 72h</button>
     </div>
@@ -256,6 +275,31 @@
   <div class="dbody" id="dBody"></div>
   <div class="dmsg" id="dMsg"></div>
   <div class="dfoot" id="dFoot"></div>
+</div>
+
+<div class="scrim" id="addScrim"></div>
+<div class="modal" id="addModal">
+  <h3>Add a job</h3>
+  <p class="modalsub">Saw a role anywhere — LinkedIn, a referral, a company page?
+    Paste it here and it's scored and tailored like any other. Nothing is fetched;
+    only what you paste is used.</p>
+  <div class="mfield"><label>Role title *</label>
+    <input id="addTitle" placeholder="Director, Revenue Operations" /></div>
+  <div class="mfield"><label>Company *</label>
+    <input id="addCompany" placeholder="Acme Robotics" /></div>
+  <div class="mrow">
+    <div class="mfield"><label>Apply / posting URL</label>
+      <input id="addUrl" placeholder="https://…" /></div>
+    <div class="mfield"><label>Location</label>
+      <input id="addLoc" placeholder="Remote – US / Dallas, TX" /></div>
+  </div>
+  <div class="mfield"><label>Job description (paste the posting)</label>
+    <textarea id="addDesc" rows="6" placeholder="Paste the role's description and responsibilities — this is what fit scoring and the cover letter draw on."></textarea></div>
+  <div id="addErr" class="adderr"></div>
+  <div class="mfoot">
+    <button class="ghost" id="addCancel">Cancel</button>
+    <button class="act" id="addSubmit">Add to pipeline</button>
+  </div>
 </div>
 
 <script>
@@ -620,6 +664,33 @@ function setView(v){
   render();
 }
 
+function openAddModal(){
+  ["addTitle","addCompany","addUrl","addLoc","addDesc"].forEach(id=>$(id).value="");
+  $("addErr").textContent="";
+  $("addScrim").classList.add("open"); $("addModal").classList.add("open");
+  setTimeout(()=>$("addTitle").focus(), 50);
+}
+function closeAddModal(){
+  $("addScrim").classList.remove("open"); $("addModal").classList.remove("open");
+}
+async function submitAddJob(){
+  const title=$("addTitle").value.trim(), company=$("addCompany").value.trim();
+  if(!title || !company){ $("addErr").textContent="Role title and company are required."; return; }
+  $("addSubmit").disabled=true; $("addErr").textContent="Adding…";
+  try {
+    const r = await api().add_job(title, company, $("addUrl").value.trim(),
+                                  $("addLoc").value.trim(), $("addDesc").value.trim());
+    if(!r || !r.ok){ $("addErr").textContent = (r&&r.error)||"Could not add the job."; return; }
+    closeAddModal();
+    const where = r.bucket==="outstanding" ? "Pipeline" : r.bucket==="new" ? "New" : "scored (off-lane)";
+    setStatus(`✓ Added ${r.title} — ${r.grade||"scored"} ${r.score??""} · ${where}`);
+    await load();
+    if(LIST_VIEWS.includes(r.bucket)) setView(r.bucket);
+    openDrawer(r.job_id);
+  } catch(e){ $("addErr").textContent="Error: "+e; }
+  finally { $("addSubmit").disabled=false; }
+}
+
 async function discover(){
   $("discoverBtn").disabled=true; setStatus("Scanning last 72h…");
   try {
@@ -633,6 +704,10 @@ async function discover(){
 document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>setView(b.dataset.view));
 $("discoverBtn").onclick=discover;
 $("refreshBtn").onclick=load;
+$("addJobBtn").onclick=openAddModal;
+$("addCancel").onclick=closeAddModal;
+$("addScrim").onclick=closeAddModal;
+$("addSubmit").onclick=submitAddJob;
 $("drawerClose").onclick=closeDrawer;
 $("scrim").onclick=closeDrawer;
 $("clearFilters").onclick=()=>{ filters.temp.clear(); filters.source.clear(); filters.loc.clear();
