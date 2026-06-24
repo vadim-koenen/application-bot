@@ -173,6 +173,23 @@ def detect_claim_gaps(job: Job, inventory: dict[str, Any]) -> list[str]:
     return sorted(set(gaps))
 
 
+def text_claim_violations(text: str, inventory: dict[str, Any]) -> list[str]:
+    """Prohibited/unverified claim ids matched anywhere in `text`.
+
+    The single source of truth for "does this string assert something the
+    inventory hasn't approved" — used both to audit a finished packet and to
+    pre-filter candidate snippets (e.g. cover-letter impact bullets) before
+    they go into a packet."""
+    violations: list[str] = []
+    for claim in inventory.get("prohibited_or_unverified_claims", []):
+        claim_id = str(claim.get("id") or "")
+        for pattern in claim.get("patterns", []):
+            if re.search(str(pattern), text, flags=re.IGNORECASE | re.DOTALL):
+                violations.append(claim_id)
+                break
+    return sorted(set(violations))
+
+
 def packet_claim_violations(
     packet: ApplicationPacket,
     inventory: dict[str, Any],
@@ -185,14 +202,7 @@ def packet_claim_violations(
             " ".join(packet.tailored_skills),
         )
     )
-    violations: list[str] = []
-    for claim in inventory.get("prohibited_or_unverified_claims", []):
-        claim_id = str(claim.get("id") or "")
-        for pattern in claim.get("patterns", []):
-            if re.search(str(pattern), generated, flags=re.IGNORECASE | re.DOTALL):
-                violations.append(claim_id)
-                break
-    return sorted(set(violations))
+    return text_claim_violations(generated, inventory)
 
 
 def claim_counts(evidence: dict[str, Any]) -> dict[str, int]:

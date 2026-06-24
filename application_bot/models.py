@@ -27,6 +27,9 @@ class JobStatus(StrEnum):
     SCORED = "SCORED"
     PACKET_EXPORTED = "PACKET_EXPORTED"
     APPLIED = "APPLIED"
+    # Operator heard back (recruiter reply / interview request) — the final
+    # funnel stage in the dashboard. Set manually via mark_responded.
+    RESPONDED = "RESPONDED"
     REVIEW_REQUIRED = "REVIEW_REQUIRED"
     BLOCKED = "BLOCKED"
 

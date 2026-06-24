@@ -14,14 +14,16 @@ the user to apply + mark applied.
 
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
 
+from application_bot.assisted_apply import build_fill_plan
 from application_bot.config import load_config
 from application_bot.database import Database
-from application_bot.packets import generate_packet
+from application_bot.packets import generate_packet, packet_to_dict
 from application_bot.pdf import export_application_pdfs
 from application_bot.pipeline import (
     discover_adzuna,
@@ -52,14 +54,42 @@ class JobAppAPI:
         database.initialize()
         return database
 
-    def _cover_letter(self, database: Database, job: Any) -> str:
-        row = database.latest_packet(int(job.id))
-        if row:
-            import json
+    def _approved_impact(self) -> list[str]:
+        """Approved résumé wins (selected_impact) to feed the cover letter.
 
-            return json.loads(row["packet_json"]).get("cover_letter", "")
+        Pulled from the same approved master the résumé uses; generate_packet
+        re-filters these against the prohibited-claim patterns, so passing them
+        all is safe. Returns [] if the master is unavailable (e.g. in tests)."""
+        try:
+            master = load_resume_master(self.config["resume_master"])
+        except (OSError, ValueError, KeyError):
+            return []
+        return [str(item) for item in (master.get("selected_impact") or [])]
+
+    def _cover_letter(self, database: Database, job: Any) -> str:
+        # Always regenerate so the letter reflects the current role and the
+        # latest template (the older cached packets held the weak boilerplate).
         policy = evaluate_job_submission_policy(job, self.config)
-        return generate_packet(job, self.config, policy).cover_letter
+        return generate_packet(
+            job, self.config, policy, impact_highlights=self._approved_impact()
+        ).cover_letter
+
+    @staticmethod
+    def _grade(score: int | None) -> str | None:
+        """6sense-style temperature from the 0-100 fit score.
+
+        Hot >= 80, Warm 65-79, Cold 45-64; below 45 is unscored noise that the
+        New/Outstanding views never surface, so it has no badge.
+        """
+        if score is None:
+            return None
+        if score >= 80:
+            return "Hot"
+        if score >= 65:
+            return "Warm"
+        if score >= 45:
+            return "Cold"
+        return None
 
     def _row(self, job: Any) -> dict[str, Any]:
         return {
@@ -67,7 +97,11 @@ class JobAppAPI:
             "company": job.company,
             "title": job.title,
             "score": job.score,
+            "grade": self._grade(job.score),
             "verdict": job.verdict,
+            "source": job.source,
+            "location": job.location or "",
+            "remote_type": job.remote_type or "unknown",
             "apply_url": job.apply_url,
             "posted_at": job.posted_at,
             "packet_status": job.packet_status,
@@ -99,23 +133,31 @@ class JobAppAPI:
     # Verdicts worth surfacing on the New tab — fresh roles below this are noise.
     _WORTH_A_LOOK = {"APPLY_PRIORITY", "GOOD_FIT", "MAYBE"}
 
+    def _is_new_fit(self, job: Any) -> bool:
+        """Fresh (within the discovery window) AND a plausible fit AND not yet
+        acted on — the New bucket. Keeps off-lane noise off the tab, and drops
+        a role out of New the moment it's marked applied/responded."""
+        if str(job.status) in ("APPLIED", "RESPONDED"):
+            return False
+        if is_fresh(job.posted_at, self.window_hours) is not True:
+            return False
+        return str(job.verdict) in self._WORTH_A_LOOK
+
     def list_roles(self, status: str = "outstanding") -> dict[str, Any]:
         database = self._db()
         rows: list[dict[str, Any]] = []
         for job in database.list_jobs(scored_only=True):
             applied = str(job.status) == "APPLIED"
+            responded = str(job.status) == "RESPONDED"
             ready = str(job.packet_status) == "PACKET_READY"
             if status == "applied" and not applied:
                 continue
-            if status == "outstanding" and (applied or not ready):
+            if status == "responded" and not responded:
                 continue
-            if status == "new":
-                # Fresh AND a plausible fit — don't flood the tab with off-lane
-                # postings from these general boards.
-                if is_fresh(job.posted_at, self.window_hours) is not True:
-                    continue
-                if str(job.verdict) not in self._WORTH_A_LOOK:
-                    continue
+            if status == "outstanding" and (applied or responded or not ready):
+                continue
+            if status == "new" and not self._is_new_fit(job):
+                continue
             rows.append(self._row(job))
         rows.sort(key=lambda r: (r["score"] or 0), reverse=True)
         return {"status": status, "roles": rows}
@@ -167,6 +209,20 @@ class JobAppAPI:
         )
         return {"ok": True, **pdfs}
 
+    def _download(self, source: str, *, open_after: bool = True) -> str:
+        """Copy a generated artifact into ~/Downloads (a real download).
+
+        Returns the destination path. Opens it in the OS viewer when
+        open_after is set (single-asset clicks); the Start-application flow
+        downloads both assets quietly and opens the form instead.
+        """
+        self.downloads_dir.mkdir(parents=True, exist_ok=True)
+        dest = self.downloads_dir / Path(source).name
+        shutil.copy2(source, dest)
+        if open_after:
+            subprocess.run(["open", str(dest)], check=False)
+        return str(dest)
+
     def open_artifact(self, job_id: int, kind: str = "resume") -> dict[str, Any]:
         """Generate the role's optimized PDF, copy it to ~/Downloads, and open it.
 
@@ -178,15 +234,145 @@ class JobAppAPI:
             return result
         source = result["cover_pdf"] if kind == "cover" else result["resume_pdf"]
         try:
-            self.downloads_dir.mkdir(parents=True, exist_ok=True)
-            dest = self.downloads_dir / Path(source).name
-            shutil.copy2(source, dest)
-            subprocess.run(["open", str(dest)], check=False)
+            dest = self._download(source, open_after=True)
         except OSError as exc:  # pragma: no cover - platform dependent
             return {"ok": False, "error": str(exc), "path": source}
-        return {"ok": True, "kind": kind, "path": str(dest), "downloaded": True}
+        return {"ok": True, "kind": kind, "path": dest, "downloaded": True}
+
+    def start_application(self, job_id: int) -> dict[str, Any]:
+        """One-click assisted apply — open the company's form with assets ready.
+
+        BOUNDARY: this NEVER submits. It tailors and downloads both PDFs to
+        ~/Downloads, opens the company's own apply page in the browser, and
+        returns the pre-approved answers to paste plus the fields the human
+        must complete personally. The submit/attestation stays the human's act.
+        """
+        database = self._db()
+        job = database.get_job(int(job_id))
+        if not job:
+            return {"ok": False, "error": f"Job {job_id} not found"}
+        result = self.make_artifacts(int(job_id))
+        if not result.get("ok"):
+            return result
+        try:
+            self._download(result["resume_pdf"], open_after=False)
+            self._download(result["cover_pdf"], open_after=False)
+        except OSError as exc:  # pragma: no cover - platform dependent
+            return {"ok": False, "error": str(exc)}
+        downloaded = [
+            Path(result["resume_pdf"]).name,
+            Path(result["cover_pdf"]).name,
+        ]
+        policy = evaluate_job_submission_policy(job, self.config)
+        packet = packet_to_dict(
+            generate_packet(
+                job, self.config, policy, impact_highlights=self._approved_impact()
+            )
+        )
+        plan = build_fill_plan(job, packet, self.export_root)
+        answers = [
+            {"label": field.label, "value": field.value}
+            for field in plan.autofill_fields
+        ]
+        leave_blank = [field.label for field in plan.human_fields]
+        is_form = str(job.apply_url or "").lower().startswith("http")
+        if is_form:
+            subprocess.run(["open", str(job.apply_url)], check=False)
+        return {
+            "ok": True,
+            "opened": is_form,
+            "is_form": is_form,
+            # The raw apply channel — an http form URL, or a recruiter/ATS hint
+            # like "recruiter:Savannah@Mondo …" for human-routed roles.
+            "channel": job.apply_url or "",
+            "apply_url": job.apply_url if is_form else "",
+            "downloaded": downloaded,
+            "answers": answers,
+            "leave_blank": leave_blank,
+        }
 
     def mark_applied(self, job_id: int, notes: str = "") -> dict[str, Any]:
         database = self._db()
         database.mark_applied(int(job_id), notes)
         return {"ok": True, "job_id": int(job_id), "status": "APPLIED"}
+
+    def mark_responded(self, job_id: int, notes: str = "") -> dict[str, Any]:
+        """Operator heard back — advance the role to the RESPONDED funnel stage."""
+        database = self._db()
+        database.mark_responded(int(job_id), notes)
+        return {"ok": True, "job_id": int(job_id), "status": "RESPONDED"}
+
+    def dashboard_summary(self) -> dict[str, Any]:
+        """KPI tiles + funnel + segment breakdowns for the dashboard home.
+
+        Pipeline stages mirror the 6sense buying stages: New -> Outstanding ->
+        Applied -> Responded. by_source / by_grade describe the Outstanding
+        working pile (the segment chips), and avg_score summarizes its fit.
+        """
+        database = self._db()
+        jobs = database.list_jobs(scored_only=True)
+        pipeline = {"new": 0, "outstanding": 0, "applied": 0, "responded": 0}
+        by_source: dict[str, int] = {}
+        by_grade = {"Hot": 0, "Warm": 0, "Cold": 0}
+        outstanding_scores: list[int] = []
+        for job in jobs:
+            applied = str(job.status) == "APPLIED"
+            responded = str(job.status) == "RESPONDED"
+            ready = str(job.packet_status) == "PACKET_READY"
+            if applied:
+                pipeline["applied"] += 1
+            if responded:
+                pipeline["responded"] += 1
+            if self._is_new_fit(job):
+                pipeline["new"] += 1
+            if ready and not applied and not responded:
+                pipeline["outstanding"] += 1
+                by_source[job.source] = by_source.get(job.source, 0) + 1
+                grade = self._grade(job.score)
+                if grade in by_grade:
+                    by_grade[grade] += 1
+                if job.score is not None:
+                    outstanding_scores.append(int(job.score))
+        avg_score = (
+            round(sum(outstanding_scores) / len(outstanding_scores))
+            if outstanding_scores
+            else None
+        )
+        return {
+            "pipeline": pipeline,
+            "by_source": by_source,
+            "by_grade": by_grade,
+            "avg_score": avg_score,
+            "total_scored": len(jobs),
+            "window_hours": self.window_hours,
+        }
+
+    def job_detail(self, job_id: int) -> dict[str, Any]:
+        """Full record for the slide-over detail panel: the enriched row plus a
+        JD excerpt, fit reasons, and risk flags parsed from the score details."""
+        database = self._db()
+        job = database.get_job(int(job_id))
+        if not job:
+            return {"ok": False, "error": f"Job {job_id} not found"}
+        try:
+            details = json.loads(job.score_details_json or "{}")
+        except (ValueError, TypeError):
+            details = {}
+        description = (job.description or "").strip()
+        requirements = (job.requirements or "").strip()
+        detail = self._row(job)
+        detail.update(
+            {
+                "ok": True,
+                "department": job.department or "",
+                "salary_min": job.salary_min,
+                "salary_max": job.salary_max,
+                "description": description[:1600],
+                "requirements": requirements[:1200],
+                "reasons": list(details.get("reasons", [])),
+                "risk_flags": list(details.get("risk_flags", [])),
+                "dimensions": details.get("dimensions", {}),
+                "recommended_next_action": job.recommended_next_action or "",
+            }
+        )
+        return detail

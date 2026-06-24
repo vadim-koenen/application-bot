@@ -717,6 +717,31 @@ class Database:
                 (job_id, json.dumps({"notes": notes}), utc_now()),
             )
 
+    def mark_responded(self, job_id: int, notes: str = "") -> None:
+        """Operator heard back on an application — advance to RESPONDED.
+
+        Mirrors mark_applied: validates the job, flips status, and records an
+        event. Does not touch the applications table (the application already
+        exists from mark_applied); this only reflects the inbound reply.
+        """
+        with self.connect() as connection:
+            exists = connection.execute(
+                "SELECT id FROM jobs WHERE id = ?", (job_id,)
+            ).fetchone()
+            if not exists:
+                raise ValueError(f"Job {job_id} does not exist")
+            connection.execute(
+                "UPDATE jobs SET status = 'RESPONDED', updated_at = ? WHERE id = ?",
+                (utc_now(), job_id),
+            )
+            connection.execute(
+                """
+                INSERT INTO events(job_id, event_type, details_json, created_at)
+                VALUES (?, 'MARKED_RESPONDED', ?, ?)
+                """,
+                (job_id, json.dumps({"notes": notes}), utc_now()),
+            )
+
     def report(self) -> dict[str, Any]:
         with self.connect() as connection:
             total = connection.execute("SELECT COUNT(*) AS count FROM jobs").fetchone()

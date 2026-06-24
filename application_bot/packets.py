@@ -14,6 +14,7 @@ from application_bot.claims import (
     matched_approved_keywords,
     packet_claim_violations,
     safe_rewrites_for_gaps,
+    text_claim_violations,
     unresolved_claim_gaps,
 )
 from application_bot.answers import build_answer_draft
@@ -35,6 +36,90 @@ from application_bot.models import (
 def slugify(value: str) -> str:
     value = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
     return value[:80] or "unknown"
+
+
+# A theme-specific opening clause keyed by the operator's approved positioning
+# themes. The clause that leads the letter is chosen by which theme the JD most
+# emphasizes (the first matched approved keyword), so different roles get a
+# different, on-point opening. Every clause describes approved *function* only —
+# no metrics, tenure, employers, or credentials — so they can never trip the
+# claim auditor.
+_THEME_LEAD: dict[str, str] = {
+    "demand generation": (
+        "designing the demand and pipeline systems that turn marketing "
+        "investment into qualified, trackable revenue"
+    ),
+    "revenue systems": (
+        "architecting the revenue systems — CRM, attribution, and the data "
+        "model beneath them — that sales and finance can actually trust"
+    ),
+    "gtm systems": (
+        "building the GTM systems and automation that let go-to-market teams "
+        "move without waiting on operations"
+    ),
+    "gtm strategy": (
+        "connecting go-to-market strategy to the systems that execute it, so "
+        "the plan and the pipeline tell the same story"
+    ),
+    "marketing operations": (
+        "running the marketing operations and data layer that keeps campaigns, "
+        "routing, and reporting accurate at scale"
+    ),
+    "lifecycle marketing": (
+        "owning the lifecycle and nurture architecture that moves prospects "
+        "from first touch to closed-won"
+    ),
+    "marketing technology": (
+        "owning the martech stack and the integrations that keep every system "
+        "speaking the same language"
+    ),
+    "ai-enabled gtm workflows": (
+        "putting AI to work inside go-to-market operations — scoring, routing, "
+        "enrichment, and content — without losing data integrity"
+    ),
+}
+_DEFAULT_LEAD = (
+    "architecting the revenue and GTM systems beneath the platform so "
+    "marketing and sales can move quickly and trust the same numbers"
+)
+
+# Terms the cover letter must never volunteer (legal/comp-sensitive). The claim
+# auditor covers metrics/tenure/credentials; this guards the JD-derived snippet
+# against leaking compensation, work-authorization, or relocation language.
+_COVER_SENSITIVE = (
+    "salary", "compensation", "visa", "sponsor", "authoriz", "wage",
+    "relocat", "clearance",
+)
+
+
+def _lead_clause(matched: list[str]) -> str:
+    """Pick the opening clause from the JD's most-emphasized approved theme."""
+    for theme in matched:
+        clause = _THEME_LEAD.get(str(theme).strip().lower())
+        if clause:
+            return clause
+    return _DEFAULT_LEAD
+
+
+def _role_focus_snippet(job: Job, inventory: dict[str, Any]) -> str:
+    """A short, claim-safe phrase quoting what the JD says the role is about.
+
+    Pulls the first sentence of the responsibilities/requirements (not the
+    'about us' description), then drops it entirely if it contains anything the
+    claim auditor flags or any comp/legal-sensitive term — so it's always safe
+    to quote back in the letter."""
+    raw = (job.responsibilities or job.requirements or "").strip()
+    if not raw:
+        return ""
+    snippet = re.split(r"(?<=[.!?])\s+", raw)[0].strip()
+    snippet = re.sub(r"\s+", " ", snippet)[:200].rstrip(" .,;:")
+    if len(snippet) < 20:
+        return ""
+    if text_claim_violations(snippet, inventory):
+        return ""
+    if any(term in snippet.lower() for term in _COVER_SENSITIVE):
+        return ""
+    return snippet
 
 
 def _approved_tenure_years(evidence: dict[str, Any]) -> int:
@@ -209,6 +294,7 @@ def generate_packet(
     evidence: dict[str, Any] | None = None,
     answer_bank: dict[str, Any] | None = None,
     assessment: PacketAssessment | None = None,
+    impact_highlights: list[str] | None = None,
 ) -> ApplicationPacket:
     inventory = inventory or load_claim_inventory(config["resume_claim_inventory"])
     evidence = evidence or load_claim_evidence(config["claim_evidence"])
@@ -294,16 +380,43 @@ def generate_packet(
         "I would welcome a conversation to assess mutual fit and the role’s "
         f"priorities.\n\nBest,\n{identity['name']}"
     )
-    cover_letter = (
-        f"Dear {job.company} Hiring Team,\n\n"
-        f"I am writing to express interest in the {job.title} role. My current "
-        f"professional identity is {business['approved_display']}. The approved "
-        f"positioning themes relevant to this posting include {', '.join(skills[:5])}.\n\n"
-        "This draft intentionally avoids background details and results that are "
-        "not present in the approved inventory. Any unsupported requirement is "
-        "listed as a claim gap for review.\n\n"
-        f"More information: {contact['website']}\n\nSincerely,\n{identity['name']}"
+    # Impact bullets are pulled from the approved résumé (selected_impact) by the
+    # caller, then filtered here against the same prohibited-claim patterns the
+    # packet auditor uses — so the cover letter can never assert anything the
+    # inventory hasn't approved, no matter what the caller passes in.
+    safe_highlights = [
+        line.strip()
+        for line in (impact_highlights or [])
+        if line and line.strip() and not text_claim_violations(line, inventory)
+    ][:3]
+    lead = _lead_clause(skills)
+    snippet = _role_focus_snippet(job, inventory)
+    maps = ", ".join(skills[:5]) if skills else business["approved_display"]
+    cover_parts = [
+        f"Dear {job.company} Hiring Team,",
+        (
+            f"I'm writing to apply for the {job.title} role at {job.company}. "
+            f"Through {business['approved_display']}, I focus on {lead}."
+        ),
+    ]
+    if snippet:
+        cover_parts.append(
+            f"Your posting centers on “{snippet}” — that's exactly the "
+            "operating layer I build and run."
+        )
+    if safe_highlights:
+        bullets = "\n".join(f"  • {line}" for line in safe_highlights)
+        cover_parts.append("A few results from that work:\n" + bullets)
+    cover_parts.append(
+        f"The parts of this role that map most directly to what I do: {maps}. "
+        f"I'd welcome the chance to walk {job.company} through how I'd approach "
+        "them."
     )
+    cover_parts.append(
+        f"More context is at {contact['website']}. Thank you for your "
+        f"consideration.\n\nSincerely,\n{identity['name']}"
+    )
+    cover_letter = "\n\n".join(cover_parts)
     suggested_answers = {"Name": identity["name"], **build_answer_draft(answer_bank, evidence)}
     score_details = json.loads(job.score_details_json or "{}")
     why_fit = list(score_details.get("reasons") or [])

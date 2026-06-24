@@ -5,169 +5,643 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Job Apply Assistant</title>
 <style>
-  :root { --bg:#0f1115; --card:#1a1d24; --line:#2a2f3a; --fg:#e6e8ec;
-          --muted:#9aa3b2; --accent:#4f8cff; --good:#16a34a; --warn:#d97706; }
-  * { box-sizing: border-box; }
-  body { margin:0; font-family:-apple-system,Helvetica,Arial,sans-serif;
-         background:var(--bg); color:var(--fg); font-size:14px; }
-  header { padding:16px 20px; border-bottom:1px solid var(--line);
-           display:flex; align-items:center; gap:14px; }
-  header h1 { font-size:16px; margin:0; font-weight:600; }
-  .pill { font-size:12px; color:var(--muted); border:1px solid var(--line);
-          padding:3px 8px; border-radius:999px; }
-  .pill.ok { color:var(--good); border-color:var(--good); }
-  .pill.bad { color:var(--warn); border-color:var(--warn); }
-  nav { display:flex; gap:4px; padding:10px 16px; border-bottom:1px solid var(--line); }
-  nav button { background:transparent; color:var(--muted); border:none;
-               padding:8px 14px; border-radius:8px; cursor:pointer; font-size:13px; }
-  nav button.active { background:var(--card); color:var(--fg); }
-  main { padding:16px 20px; }
-  .bar { display:flex; gap:10px; align-items:center; margin-bottom:14px; flex-wrap:wrap; }
-  button.act { background:var(--accent); color:#fff; border:none; padding:8px 14px;
-               border-radius:8px; cursor:pointer; font-size:13px; }
-  button.ghost { background:var(--card); color:var(--fg); border:1px solid var(--line);
-                 padding:7px 12px; border-radius:8px; cursor:pointer; font-size:13px; }
+  :root {
+    --bg:#eef1f6; --panel:#ffffff; --sidebar:#ffffff; --rail:#10233f;
+    --ink:#1d2733; --muted:#6b7480; --faint:#9aa3b0; --line:#e4e8ef;
+    --brand:#2f6df6; --brand-soft:#eaf1ff;
+    --hot:#e23d3d; --hot-bg:#fdecec;
+    --warm:#e08a00; --warm-bg:#fdf2dc;
+    --cold:#2f6df6; --cold-bg:#e9f0ff;
+    --good:#16a34a; --shadow:0 1px 3px rgba(16,35,63,.08),0 8px 24px rgba(16,35,63,.06);
+  }
+  * { box-sizing:border-box; }
+  html,body { height:100%; }
+  body { margin:0; font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;
+         background:var(--bg); color:var(--ink); font-size:13.5px; }
+  .app { display:flex; min-height:100vh; }
+
+  /* ---- Sidebar (nav + filters) ---- */
+  aside { width:236px; flex:0 0 236px; background:var(--sidebar);
+          border-right:1px solid var(--line); display:flex; flex-direction:column; }
+  .brand { padding:16px 18px 12px; border-bottom:1px solid var(--line); }
+  .brand h1 { font-size:14px; margin:0 0 6px; font-weight:700; letter-spacing:.2px; }
+  .pill { font-size:11px; color:var(--muted); border:1px solid var(--line);
+          padding:2px 8px; border-radius:999px; display:inline-block; }
+  .pill.ok { color:var(--good); border-color:#bfe6cb; background:#f1fbf4; }
+  .pill.bad { color:var(--warm); border-color:#f3dfb0; background:#fdf6e8; }
+
+  nav { padding:8px 10px; }
+  nav button { width:100%; text-align:left; background:transparent; color:var(--muted);
+               border:none; padding:9px 12px; border-radius:8px; cursor:pointer;
+               font-size:13px; display:flex; align-items:center; gap:10px; }
+  nav button .ico { width:16px; text-align:center; opacity:.8; }
+  nav button .ct { margin-left:auto; font-size:11px; color:var(--faint);
+                   background:var(--bg); padding:1px 7px; border-radius:999px; }
+  nav button:hover { background:#f5f7fb; color:var(--ink); }
+  nav button.active { background:var(--brand-soft); color:var(--brand); font-weight:600; }
+  nav button.active .ct { color:var(--brand); background:#fff; }
+
+  .filters { border-top:1px solid var(--line); margin-top:6px; padding:14px 16px;
+             overflow:auto; }
+  .filters h3 { font-size:11px; text-transform:uppercase; letter-spacing:.6px;
+                color:var(--faint); margin:0 0 10px; }
+  .fgroup { margin-bottom:16px; }
+  .fgroup .lbl { font-size:11px; color:var(--muted); font-weight:600; margin-bottom:6px; }
+  .fitem { display:flex; align-items:center; gap:8px; padding:3px 0; font-size:12.5px;
+           color:var(--ink); cursor:pointer; }
+  .fitem input { accent-color:var(--brand); }
+  .fitem .n { margin-left:auto; color:var(--faint); font-size:11px; }
+  .search { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:8px;
+            background:#fff; color:var(--ink); font-size:12.5px; }
+  .clearf { font-size:11px; color:var(--brand); background:none; border:none;
+            cursor:pointer; padding:0; }
+
+  /* ---- Main ---- */
+  main { flex:1; min-width:0; display:flex; flex-direction:column; }
+  .topbar { display:flex; align-items:center; gap:12px; padding:16px 24px;
+            border-bottom:1px solid var(--line); background:var(--panel); }
+  .topbar h2 { font-size:17px; margin:0; font-weight:700; }
+  .topbar .sub { color:var(--muted); font-size:12px; }
+  .spacer { flex:1; }
+  button.act { background:var(--brand); color:#fff; border:none; padding:8px 15px;
+               border-radius:8px; cursor:pointer; font-size:13px; font-weight:600; }
+  button.ghost { background:#fff; color:var(--ink); border:1px solid var(--line);
+                 padding:7px 13px; border-radius:8px; cursor:pointer; font-size:13px; }
+  button.ghost:hover { border-color:#cfd6e2; }
   button:disabled { opacity:.5; cursor:default; }
-  .note { color:var(--muted); font-size:12px; }
+  .status-msg { color:var(--muted); font-size:12px; }
+  .content { padding:22px 24px; overflow:auto; }
+
+  /* ---- KPI tiles ---- */
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+           gap:14px; margin-bottom:22px; }
+  .tile { background:var(--panel); border:1px solid var(--line); border-radius:12px;
+          padding:16px 18px; box-shadow:var(--shadow); }
+  .tile .k { font-size:11px; text-transform:uppercase; letter-spacing:.5px;
+             color:var(--muted); margin-bottom:8px; }
+  .tile .v { font-size:28px; font-weight:700; line-height:1; }
+  .tile .v small { font-size:13px; color:var(--faint); font-weight:500; }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px;
+          padding:18px 20px; box-shadow:var(--shadow); margin-bottom:20px; }
+  .card h3 { font-size:13px; margin:0 0 16px; font-weight:700; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  @media (max-width:900px){ .grid2 { grid-template-columns:1fr; } }
+
+  /* ---- Funnel ---- */
+  .funnel { display:flex; flex-direction:column; gap:10px; }
+  .fstep { display:flex; align-items:center; gap:12px; }
+  .fstep .name { width:104px; font-size:12px; color:var(--muted); }
+  .fstep .track { flex:1; background:#f1f4f9; border-radius:7px; height:30px;
+                  position:relative; overflow:hidden; }
+  .fstep .fill { height:100%; border-radius:7px; display:flex; align-items:center;
+                 padding:0 10px; color:#fff; font-weight:700; font-size:12px;
+                 min-width:30px; transition:width .4s ease; }
+
+  /* ---- Bars ---- */
+  .bars { display:flex; flex-direction:column; gap:11px; }
+  .brow { display:flex; align-items:center; gap:10px; font-size:12px; }
+  .brow .nm { width:110px; color:var(--muted); white-space:nowrap; overflow:hidden;
+              text-overflow:ellipsis; }
+  .brow .bt { flex:1; background:#f1f4f9; border-radius:6px; height:18px; overflow:hidden; }
+  .brow .bf { height:100%; border-radius:6px; }
+  .brow .bv { width:30px; text-align:right; font-weight:600; color:var(--ink); }
+
+  /* ---- Segment chips ---- */
+  .chips { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
+  .chip { border:1px solid var(--line); background:#fff; border-radius:999px;
+          padding:7px 14px; font-size:12.5px; cursor:pointer; display:flex;
+          align-items:center; gap:8px; color:var(--ink); }
+  .chip .dot { width:8px; height:8px; border-radius:50%; }
+  .chip .c { color:var(--faint); font-weight:600; }
+  .chip.active { border-color:var(--brand); background:var(--brand-soft); color:var(--brand); }
+  .chip.active .c { color:var(--brand); }
+
+  /* ---- Account list ---- */
+  .list { background:var(--panel); border:1px solid var(--line); border-radius:12px;
+          box-shadow:var(--shadow); overflow:hidden; }
   table { width:100%; border-collapse:collapse; }
-  th,td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--line);
-          vertical-align:top; }
-  th { color:var(--muted); font-weight:500; font-size:12px; }
-  .score { font-weight:700; }
-  .sub { color:var(--muted); font-size:12px; }
-  a { color:var(--accent); text-decoration:none; }
-  a.apply { font-weight:600; border:1px solid var(--accent); padding:6px 11px;
-            border-radius:8px; display:inline-block; }
-  .tag { font-size:11px; padding:2px 7px; border-radius:999px; border:1px solid var(--line);
-         color:var(--muted); }
-  .tag.form { color:var(--good); border-color:var(--good); }
-  .tag.email { color:var(--accent); border-color:var(--accent); }
-  .empty { color:var(--muted); padding:30px 0; text-align:center; }
-  .field { margin:10px 0; }
-  label { display:block; color:var(--muted); font-size:12px; margin-bottom:4px; }
-  input { width:340px; max-width:100%; padding:8px; border-radius:8px;
-          border:1px solid var(--line); background:var(--bg); color:var(--fg); }
+  thead th { text-align:left; padding:11px 16px; font-size:11px; text-transform:uppercase;
+             letter-spacing:.5px; color:var(--faint); font-weight:600;
+             border-bottom:1px solid var(--line); background:#fafbfd; }
+  tbody td { padding:13px 16px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  tbody tr { cursor:pointer; }
+  tbody tr:hover { background:#f7f9fc; }
+  tbody tr:last-child td { border-bottom:none; }
+  .acct { display:flex; align-items:center; gap:11px; }
+  .avatar { width:34px; height:34px; border-radius:9px; flex:0 0 34px; color:#fff;
+            display:flex; align-items:center; justify-content:center; font-weight:700;
+            font-size:14px; }
+  .acct .nm { font-weight:600; }
+  .acct .loc { color:var(--muted); font-size:11.5px; margin-top:2px; }
+  .ttl { font-size:13px; }
+  .src { font-size:11px; color:var(--muted); text-transform:capitalize; }
+  .recency { color:var(--muted); font-size:12px; }
+  .temp { font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:6px;
+          display:inline-flex; align-items:center; gap:6px; }
+  .temp .d { width:7px; height:7px; border-radius:50%; }
+  .temp.Hot { color:var(--hot); background:var(--hot-bg); }
+  .temp.Warm { color:var(--warm); background:var(--warm-bg); }
+  .temp.Cold { color:var(--cold); background:var(--cold-bg); }
+  .temp.Hot .d { background:var(--hot); } .temp.Warm .d { background:var(--warm); }
+  .temp.Cold .d { background:var(--cold); }
+  .scorenum { font-weight:700; font-size:14px; }
+  .chev { color:var(--faint); text-align:right; font-size:16px; }
+  .empty { color:var(--muted); padding:48px 0; text-align:center; }
+
+  /* ---- Slide-over ---- */
+  .scrim { position:fixed; inset:0; background:rgba(16,35,63,.32); opacity:0;
+           pointer-events:none; transition:opacity .25s; z-index:40; }
+  .scrim.open { opacity:1; pointer-events:auto; }
+  .drawer { position:fixed; top:0; right:0; height:100vh; width:460px; max-width:92vw;
+            background:var(--panel); box-shadow:-8px 0 30px rgba(16,35,63,.18);
+            transform:translateX(100%); transition:transform .28s ease; z-index:50;
+            display:flex; flex-direction:column; }
+  .drawer.open { transform:translateX(0); }
+  .dhead { padding:20px 22px 16px; border-bottom:1px solid var(--line); }
+  .dhead .close { float:right; background:none; border:none; font-size:22px;
+                  color:var(--faint); cursor:pointer; line-height:1; }
+  .dhead .co { font-size:11px; color:var(--muted); text-transform:uppercase;
+               letter-spacing:.5px; }
+  .dhead h3 { margin:6px 0 12px; font-size:18px; font-weight:700; }
+  .dmeta { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .dbody { padding:18px 22px; overflow:auto; flex:1; }
+  .dbody .sec { margin-bottom:20px; }
+  .dbody .sec h4 { font-size:11px; text-transform:uppercase; letter-spacing:.5px;
+                   color:var(--faint); margin:0 0 8px; }
+  .dbody ul { margin:0; padding-left:18px; }
+  .dbody li { margin-bottom:5px; line-height:1.45; }
+  .kv { display:flex; gap:8px; font-size:12.5px; margin-bottom:5px; }
+  .kv .kk { color:var(--muted); width:92px; flex:0 0 92px; }
+  .jd { font-size:12.5px; line-height:1.55; color:#374151; white-space:pre-wrap;
+        background:#fafbfd; border:1px solid var(--line); border-radius:8px;
+        padding:12px; max-height:220px; overflow:auto; }
+  .risk { color:var(--hot); }
+  .dmsg { padding:0 22px; color:var(--good); font-size:12.5px; min-height:0; }
+  .dmsg:not(:empty) { padding:10px 22px 0; }
+  .dmsg.err { color:var(--hot); }
+  .dfoot { padding:16px 22px; border-top:1px solid var(--line); display:flex;
+           gap:10px; flex-wrap:wrap; align-items:center; }
+  .apply { background:var(--brand); color:#fff; font-weight:600; padding:9px 15px;
+            border-radius:8px; text-decoration:none; font-size:13px; border:none; cursor:pointer; }
+  .nextact { font-size:12px; color:var(--muted); background:#fafbfd;
+             border-left:3px solid var(--brand); padding:8px 12px; border-radius:0 6px 6px 0; }
+  .applyhelp { background:#f1f7ff; border:1px solid #cfe0ff; border-radius:10px;
+               padding:14px 16px; margin-bottom:18px; }
+  .applyhelp h4 { font-size:11px; text-transform:uppercase; letter-spacing:.5px;
+                  color:var(--brand); margin:0 0 10px; }
+  .applyhelp .kv .kk { color:var(--muted); }
+  .note2 { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.5; }
 </style>
 </head>
 <body>
-  <header>
-    <h1>Job Apply Assistant</h1>
-    <span id="modePill" class="pill">connecting…</span>
-    <span style="flex:1"></span>
-    <span id="counts" class="note"></span>
-  </header>
-  <nav>
-    <button data-tab="new" class="active">New (72h)</button>
-    <button data-tab="outstanding">Outstanding</button>
-    <button data-tab="applied">Applied</button>
-    <button data-tab="settings">Settings</button>
-  </nav>
-  <main>
-    <div class="bar" id="bar">
-      <button class="act" id="discoverBtn">Discover last 72h</button>
-      <button class="ghost" id="refreshBtn">Refresh</button>
-      <span id="status" class="note"></span>
+<div class="app">
+  <aside>
+    <div class="brand">
+      <h1>Job Apply Assistant</h1>
+      <span id="modePill" class="pill">connecting…</span>
     </div>
-    <div id="view"></div>
+    <nav id="nav">
+      <button data-view="dashboard" class="active"><span class="ico">▦</span>Dashboard</button>
+      <button data-view="new"><span class="ico">✦</span>New (72h)<span class="ct" id="ct-new"></span></button>
+      <button data-view="outstanding"><span class="ico">▤</span>Pipeline<span class="ct" id="ct-outstanding"></span></button>
+      <button data-view="applied"><span class="ico">✓</span>Applied<span class="ct" id="ct-applied"></span></button>
+      <button data-view="responded"><span class="ico">✉</span>Replies<span class="ct" id="ct-responded"></span></button>
+      <button data-view="analytics"><span class="ico">◔</span>Analytics</button>
+      <button data-view="settings"><span class="ico">⚙</span>Settings</button>
+    </nav>
+    <div class="filters" id="filters" style="display:none">
+      <h3>Filter list <button class="clearf" id="clearFilters" style="float:right">clear</button></h3>
+      <div class="fgroup">
+        <input class="search" id="search" placeholder="Search role or company…" />
+      </div>
+      <div class="fgroup">
+        <div class="lbl">Temperature</div>
+        <div id="fTemp"></div>
+      </div>
+      <div class="fgroup">
+        <div class="lbl">Source</div>
+        <div id="fSource"></div>
+      </div>
+      <div class="fgroup">
+        <div class="lbl">Location</div>
+        <div id="fLoc"></div>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <div>
+        <h2 id="viewTitle">Dashboard</h2>
+        <div class="sub" id="viewSub"></div>
+      </div>
+      <div class="spacer"></div>
+      <span id="statusMsg" class="status-msg"></span>
+      <button class="ghost" id="refreshBtn">Refresh</button>
+      <button class="act" id="discoverBtn">Discover 72h</button>
+    </div>
+    <div class="content" id="content"></div>
   </main>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<div class="drawer" id="drawer">
+  <div class="dhead">
+    <button class="close" id="drawerClose">×</button>
+    <div class="co" id="dCo"></div>
+    <h3 id="dTitle"></h3>
+    <div class="dmeta" id="dMeta"></div>
+  </div>
+  <div class="dbody" id="dBody"></div>
+  <div class="dmsg" id="dMsg"></div>
+  <div class="dfoot" id="dFoot"></div>
+</div>
 
 <script>
 const api = () => window.pywebview.api;
-let tab = "new";
-
 function $(id){ return document.getElementById(id); }
 
-function tag(role){
-  return role.is_form
-    ? '<span class="tag form">web form</span>'
-    : '<span class="tag email">email / recruiter</span>';
+const LIST_VIEWS = ["new","outstanding","applied","responded"];
+const TITLES = {
+  dashboard:["Dashboard","Pipeline overview, refreshed live from your CRM"],
+  new:["New (72h)","Fresh, on-lane roles discovered in the last 72 hours"],
+  outstanding:["Pipeline","Tailored and ready — your working pile"],
+  applied:["Applied","Roles you've submitted on the company form"],
+  responded:["Replies","Recruiter replies and interview requests"],
+  analytics:["Analytics","Fit distribution, sources, and funnel"],
+  settings:["Settings","Discovery sources and workflow"],
+};
+const GRADE_COLOR = { Hot:"var(--hot)", Warm:"var(--warm)", Cold:"var(--cold)" };
+
+let view = "dashboard";
+let roles = [];                 // current list view's roles
+let summary = null;
+let filters = { temp:new Set(), source:new Set(), loc:new Set(), q:"" };
+let activeChip = null;          // segment chip temp filter (overrides)
+
+// ---------- helpers ----------
+function relTime(iso){
+  if(!iso) return "—";
+  const t = Date.parse(iso); if(isNaN(t)) return "—";
+  const d = Math.floor((Date.now()-t)/86400000);
+  if(d <= 0) return "today";
+  if(d === 1) return "1 day ago";
+  if(d < 30) return d+" days ago";
+  const m = Math.floor(d/30); return m+(m===1?" mo ago":" mos ago");
+}
+function avatarColor(s){
+  let h=0; for(const c of (s||"?")) h=(h*31+c.charCodeAt(0))>>>0;
+  const hue=h%360; return `hsl(${hue} 42% 46%)`;
+}
+function locBucket(r){
+  const rt=(r.remote_type||"").toLowerCase();
+  const loc=(r.location||"").toLowerCase();
+  if(rt==="remote"||loc.includes("remote")) return "Remote";
+  if(/dallas|plano|fort worth|dfw|frisco|mckinney|texas|, tx|tarrant|collin/.test(loc)) return "DFW";
+  return "Other";
+}
+function esc(s){ return (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// ---------- rendering ----------
+function tempBadge(g){
+  if(!g) return '<span class="src">—</span>';
+  return `<span class="temp ${g}"><span class="d"></span>${g}</span>`;
 }
 
-function actions(role){
-  let html = "";
-  if (role.is_form && role.apply_url)
-    html += `<a class="apply" href="${role.apply_url}" target="_blank">Apply &rarr;</a> `;
-  html += `<button class="ghost" onclick="openPdf(${role.id},'resume')">Résumé PDF</button> `;
-  html += `<button class="ghost" onclick="openPdf(${role.id},'cover')">Cover Letter PDF</button>`;
-  if (role.status !== "APPLIED")
-    html += ` <button class="ghost" onclick="markApplied(${role.id})">Mark applied</button>`;
-  return html;
+function renderDashboard(){
+  $("filters").style.display="none";
+  const p = summary.pipeline;
+  const tiles = [
+    ["New · 72h", p.new],
+    ["Outstanding", p.outstanding],
+    ["Applied", p.applied],
+    ["Replies", p.responded],
+    ["Avg fit (pipeline)", summary.avg_score==null?"—":summary.avg_score],
+  ].map(([k,v])=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
+
+  const stages=[["New",p.new],["Outstanding",p.outstanding],["Applied",p.applied],["Replies",p.responded]];
+  const fmax=Math.max(1,...stages.map(s=>s[1]));
+  const fcolors=["#7aa2f7","#2f6df6","#16a34a","#e08a00"];
+  const funnel=stages.map((s,i)=>`
+    <div class="fstep"><div class="name">${s[0]}</div>
+      <div class="track"><div class="fill" style="width:${Math.max(6,s[1]/fmax*100)}%;background:${fcolors[i]}">${s[1]}</div></div>
+    </div>`).join("");
+
+  const gradeBars = barChart(summary.by_grade, g=>GRADE_COLOR[g]||"var(--brand)");
+  const srcBars = barChart(summary.by_source, ()=> "var(--brand)");
+
+  $("content").innerHTML = `
+    <div class="tiles">${tiles}</div>
+    <div class="card"><h3>Pipeline funnel</h3><div class="funnel">${funnel}</div></div>
+    <div class="grid2">
+      <div class="card"><h3>Outstanding by temperature</h3>${gradeBars}</div>
+      <div class="card"><h3>Outstanding by source</h3>${srcBars}</div>
+    </div>`;
 }
 
-function renderRoles(roles){
-  if (!roles.length) return `<div class="empty">No roles here yet. Try “Discover last 24h”.</div>`;
-  const rows = roles.map(r => `
-    <tr>
-      <td class="score">${r.score ?? ""}</td>
-      <td><b>${r.company}</b><br><span class="sub">${r.title}</span></td>
-      <td>${tag(r)}</td>
-      <td>${actions(r)}</td>
-    </tr>`).join("");
-  return `<table><tr><th>Score</th><th>Role</th><th>Apply</th><th>Actions</th></tr>${rows}</table>`;
+function barChart(obj, colorFn){
+  const entries=Object.entries(obj).filter(([,v])=>v>0);
+  if(!entries.length) return `<div class="empty" style="padding:20px 0">No data yet.</div>`;
+  const max=Math.max(...entries.map(([,v])=>v));
+  return `<div class="bars">`+entries.map(([k,v])=>`
+    <div class="brow"><div class="nm">${esc(k)}</div>
+      <div class="bt"><div class="bf" style="width:${Math.max(3,v/max*100)}%;background:${colorFn(k)}"></div></div>
+      <div class="bv">${v}</div></div>`).join("")+`</div>`;
 }
 
-function renderSettings(s){
-  return `
-    <div class="field"><label>Company registry</label>
-      <div class="sub">${s.registry}</div></div>
-    <div class="field note">
-      Workflow: click <b>Apply &rarr;</b> to open the company's application form,
-      <b>Résumé PDF</b> / <b>Cover Letter PDF</b> to open your role-tailored documents
-      (save or print from the viewer), then <b>Mark applied</b> when you submit.
-      <br><br>The bot discovers and tailors; you submit on the company's own form.</div>`;
+function renderAnalytics(){
+  $("filters").style.display="none";
+  const p=summary.pipeline;
+  const stages=[["New",p.new],["Outstanding",p.outstanding],["Applied",p.applied],["Replies",p.responded]];
+  const fmax=Math.max(1,...stages.map(s=>s[1]));
+  const fcolors=["#7aa2f7","#2f6df6","#16a34a","#e08a00"];
+  const funnel=stages.map((s,i)=>`
+    <div class="fstep"><div class="name">${s[0]}</div>
+      <div class="track"><div class="fill" style="width:${Math.max(6,s[1]/fmax*100)}%;background:${fcolors[i]}">${s[1]}</div></div>
+    </div>`).join("");
+  $("content").innerHTML = `
+    <div class="grid2">
+      <div class="card"><h3>Fit distribution (Outstanding)</h3>${barChart(summary.by_grade,g=>GRADE_COLOR[g]||"var(--brand)")}</div>
+      <div class="card"><h3>By source (Outstanding)</h3>${barChart(summary.by_source,()=> "var(--brand)")}</div>
+    </div>
+    <div class="card"><h3>Conversion funnel</h3><div class="funnel">${funnel}</div></div>
+    <div class="card"><h3>Coverage</h3>
+      <div class="kv"><span class="kk">Scored total</span><b>${summary.total_scored}</b></div>
+      <div class="kv"><span class="kk">Window</span>${summary.window_hours}h freshness</div>
+    </div>`;
 }
 
-async function refresh(){
-  const s = await api().get_status();
-  $("modePill").textContent = "connected";
-  $("modePill").className = "pill ok";
-  $("counts").textContent =
-    `${s.total} roles · ${s.outstanding} outstanding · ${s.applied} applied`;
-  $("bar").style.display = (tab === "settings") ? "none" : "flex";
-  if (tab === "settings"){ $("view").innerHTML = renderSettings(s); return; }
-  const data = await api().list_roles(tab);
-  $("view").innerHTML = renderRoles(data.roles);
+function renderSettings(){
+  $("filters").style.display="none";
+  $("content").innerHTML = `
+    <div class="card"><h3>Discovery</h3>
+      <div class="kv"><span class="kk">Registry</span>${esc(summary.registry||"")}</div>
+      <div class="kv"><span class="kk">Freshness</span>${summary.window_hours}h window</div>
+    </div>
+    <div class="card"><h3>Workflow</h3>
+      <p style="line-height:1.6;color:#374151;margin:0">
+      The bot <b>discovers</b> roles (27 ATS boards + Adzuna), <b>scores</b> fit
+      (Hot / Warm / Cold), and <b>tailors</b> an ATS résumé + cover letter. Open a
+      role to review the fit, click <b>Apply →</b> to open the company's own form,
+      download the <b>Résumé / Cover PDF</b>, submit it yourself, then
+      <b>Mark applied</b>. When a recruiter replies, <b>Mark replied</b> to advance
+      it in the funnel.<br><br>
+      The app never auto-submits applications and never fabricates claims — résumé
+      content comes only from your approved master profile.</p>
+    </div>`;
+}
+
+function applyFilters(list){
+  return list.filter(r=>{
+    const g=r.grade||"";
+    const tempSet = activeChip ? new Set([activeChip]) : filters.temp;
+    if(tempSet.size && !tempSet.has(g)) return false;
+    if(filters.source.size && !filters.source.has(r.source)) return false;
+    if(filters.loc.size && !filters.loc.has(locBucket(r))) return false;
+    if(filters.q){
+      const q=filters.q.toLowerCase();
+      if(!((r.company||"").toLowerCase().includes(q)||(r.title||"").toLowerCase().includes(q))) return false;
+    }
+    return true;
+  });
+}
+
+function renderFilters(){
+  $("filters").style.display="block";
+  // Temperature facets
+  const tcounts={Hot:0,Warm:0,Cold:0};
+  roles.forEach(r=>{ if(tcounts[r.grade]!=null) tcounts[r.grade]++; });
+  $("fTemp").innerHTML = ["Hot","Warm","Cold"].map(t=>`
+    <label class="fitem"><input type="checkbox" data-temp="${t}" ${filters.temp.has(t)?"checked":""}/>
+      ${tempBadge(t)}<span class="n">${tcounts[t]}</span></label>`).join("");
+  // Source facets
+  const scounts={};
+  roles.forEach(r=> scounts[r.source]=(scounts[r.source]||0)+1);
+  $("fSource").innerHTML = Object.keys(scounts).sort().map(s=>`
+    <label class="fitem"><input type="checkbox" data-source="${esc(s)}" ${filters.source.has(s)?"checked":""}/>
+      <span style="text-transform:capitalize">${esc(s)}</span><span class="n">${scounts[s]}</span></label>`).join("")
+    || '<span class="src">none</span>';
+  // Location facets
+  const lcounts={};
+  roles.forEach(r=>{ const b=locBucket(r); lcounts[b]=(lcounts[b]||0)+1; });
+  $("fLoc").innerHTML = Object.keys(lcounts).sort().map(l=>`
+    <label class="fitem"><input type="checkbox" data-loc="${l}" ${filters.loc.has(l)?"checked":""}/>
+      ${l}<span class="n">${lcounts[l]}</span></label>`).join("");
+  wireFilterInputs();
+}
+
+function wireFilterInputs(){
+  $("fTemp").querySelectorAll("input").forEach(el=>el.onchange=()=>{
+    activeChip=null; toggle(filters.temp, el.dataset.temp, el.checked); renderList(); });
+  $("fSource").querySelectorAll("input").forEach(el=>el.onchange=()=>{
+    toggle(filters.source, el.dataset.source, el.checked); renderList(); });
+  $("fLoc").querySelectorAll("input").forEach(el=>el.onchange=()=>{
+    toggle(filters.loc, el.dataset.loc, el.checked); renderList(); });
+}
+function toggle(set,key,on){ on?set.add(key):set.delete(key); }
+
+function renderList(){
+  const shown = applyFilters(roles);
+  // segment chips
+  const tcounts={Hot:0,Warm:0,Cold:0};
+  roles.forEach(r=>{ if(tcounts[r.grade]!=null) tcounts[r.grade]++; });
+  const chips = `<div class="chips">
+    <div class="chip ${activeChip===null && filters.temp.size===0?'active':''}" data-chip="all">All<span class="c">${roles.length}</span></div>
+    ${["Hot","Warm","Cold"].map(t=>`
+      <div class="chip ${activeChip===t?'active':''}" data-chip="${t}">
+        <span class="dot" style="background:${GRADE_COLOR[t]}"></span>${t}<span class="c">${tcounts[t]}</span></div>`).join("")}
+  </div>`;
+
+  let body;
+  if(!shown.length){
+    body = `<div class="list"><div class="empty">No roles match. ${roles.length?'Adjust filters.':'Try “Discover 72h”.'}</div></div>`;
+  } else {
+    const rows = shown.map(r=>`
+      <tr data-id="${r.id}">
+        <td><div class="acct">
+          <div class="avatar" style="background:${avatarColor(r.company)}">${esc((r.company||"?").trim()[0]||"?").toUpperCase()}</div>
+          <div><div class="nm">${esc(r.company)}</div><div class="loc">${esc(r.location||"Location n/a")}</div></div>
+        </div></td>
+        <td class="ttl">${esc(r.title)}</td>
+        <td>${tempBadge(r.grade)}</td>
+        <td class="scorenum">${r.score==null?"—":r.score}</td>
+        <td class="src">${esc(r.source)}</td>
+        <td class="recency">${relTime(r.posted_at)}</td>
+        <td class="chev">›</td>
+      </tr>`).join("");
+    body = `<div class="list"><table>
+      <thead><tr><th>Account</th><th>Role</th><th>6QA Temp</th><th>Fit</th><th>Source</th><th>Posted</th><th></th></tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
+  }
+  $("content").innerHTML = chips + body;
+
+  $("content").querySelectorAll(".chip").forEach(c=>c.onclick=()=>{
+    const v=c.dataset.chip;
+    if(v==="all"){ activeChip=null; filters.temp.clear(); renderFilters(); }
+    else activeChip = (activeChip===v?null:v);
+    renderList();
+  });
+  $("content").querySelectorAll("tbody tr").forEach(tr=>tr.onclick=()=>openDrawer(+tr.dataset.id));
+}
+
+// ---------- drawer ----------
+async function openDrawer(id){
+  $("scrim").classList.add("open"); $("drawer").classList.add("open");
+  $("dBody").innerHTML = `<div class="empty">Loading…</div>`; $("dFoot").innerHTML="";
+  $("dMsg").textContent=""; $("dMsg").className="dmsg";
+  const d = await api().job_detail(id);
+  if(!d.ok){ $("dBody").innerHTML=`<div class="empty">${esc(d.error||"Not found")}</div>`; return; }
+  $("dCo").textContent = d.source ? `${d.company} · ${d.source}` : d.company;
+  $("dTitle").textContent = d.title;
+  const sal = (d.salary_min||d.salary_max)
+    ? `$${Math.round((d.salary_min||d.salary_max)/1000)}k${d.salary_max&&d.salary_min?'–$'+Math.round(d.salary_max/1000)+'k':''}` : "";
+  $("dMeta").innerHTML = `${tempBadge(d.grade)}
+    <span class="scorenum">${d.score==null?"":d.score+" fit"}</span>
+    ${sal?`<span class="src">${sal}</span>`:""}`;
+
+  const reasons = (d.reasons||[]).map(x=>`<li>${esc(x)}</li>`).join("");
+  const risks = (d.risk_flags||[]).map(x=>`<li class="risk">${esc(x)}</li>`).join("");
+  $("dBody").innerHTML = `
+    ${d.recommended_next_action?`<div class="nextact">${esc(d.recommended_next_action)}</div><div style="height:14px"></div>`:""}
+    <div class="sec">
+      <div class="kv"><span class="kk">Location</span>${esc(d.location||"n/a")}</div>
+      <div class="kv"><span class="kk">Work type</span>${esc(d.remote_type||"unknown")}</div>
+      ${d.department?`<div class="kv"><span class="kk">Team</span>${esc(d.department)}</div>`:""}
+      <div class="kv"><span class="kk">Posted</span>${relTime(d.posted_at)}</div>
+      <div class="kv"><span class="kk">Stage</span>${esc(d.status)}</div>
+    </div>
+    ${reasons?`<div class="sec"><h4>Why it fits</h4><ul>${reasons}</ul></div>`:""}
+    ${risks?`<div class="sec"><h4>Watch-outs</h4><ul>${risks}</ul></div>`:""}
+    ${d.description?`<div class="sec"><h4>Job description</h4><div class="jd">${esc(d.description)}</div></div>`:""}
+    ${d.requirements?`<div class="sec"><h4>Requirements</h4><div class="jd">${esc(d.requirements)}</div></div>`:""}`;
+
+  let foot="";
+  foot += `<button class="apply" onclick="startApplication(${d.id})">`
+        + `${d.is_form ? "Start application →" : "Prepare application"}</button>`;
+  foot += `<button class="ghost" onclick="openPdf(${d.id},'resume')">Résumé PDF</button>`;
+  foot += `<button class="ghost" onclick="openPdf(${d.id},'cover')">Cover PDF</button>`;
+  if(d.status!=="APPLIED" && d.status!=="RESPONDED")
+    foot += `<button class="act" onclick="markApplied(${d.id})">Mark applied</button>`;
+  else if(d.status==="APPLIED")
+    foot += `<button class="act" onclick="markResponded(${d.id})">Mark replied</button>`;
+  $("dFoot").innerHTML = foot;
+}
+function closeDrawer(){ $("scrim").classList.remove("open"); $("drawer").classList.remove("open"); }
+
+function drawerMsg(text, isErr){
+  const el=$("dMsg"); if(!el) return;
+  el.textContent=text; el.className="dmsg"+(isErr?" err":"");
+}
+async function openPdf(id,kind){
+  const label = kind==="cover" ? "cover letter" : "résumé";
+  drawerMsg(`Preparing ${label} PDF…`); setStatus(`Tailoring ${label}…`);
+  try {
+    const r = await api().open_artifact(id,kind);
+    const ok = r && r.ok;
+    const msg = ok ? `✓ Saved ${label} PDF to your Downloads folder` : `Error: ${(r&&r.error)||"could not open"}`;
+    drawerMsg(msg, !ok); setStatus(msg);
+  } catch(e){ drawerMsg("Error: "+e, true); }
+}
+async function startApplication(id){
+  drawerMsg("Tailoring your documents…");
+  try {
+    const r = await api().start_application(id);
+    if(!r || !r.ok){ drawerMsg("Error: "+((r&&r.error)||"could not start"), true); return; }
+    drawerMsg(r.opened
+      ? "✓ Opened the application form in your browser. Résumé + cover saved to Downloads — review and submit."
+      : "✓ Résumé + cover saved to Downloads. This role is recruiter/ATS-routed — see how to apply below.");
+    renderApplyHelper(r);
+  } catch(e){ drawerMsg("Error: "+e, true); }
+}
+function renderApplyHelper(r){
+  const rows = (r.answers||[]).map(a=>
+    `<div class="kv"><span class="kk">${esc(a.label)}</span><b>${esc(a.value)}</b></div>`).join("");
+  const blanks = (r.leave_blank||[]).length
+    ? `<div class="note2"><b>Fill these yourself:</b> ${(r.leave_blank).map(esc).join(" · ")}</div>` : "";
+  const channel = (!r.opened && r.channel)
+    ? `<div class="note2"><b>How to apply:</b> ${esc(r.channel)}</div>` : "";
+  const html = `<div class="applyhelp">
+      <h4>${r.opened ? "Paste these into the form" : "Ready to apply"}</h4>
+      ${channel}
+      ${rows || '<div class="note2">No pre-approved answers for this role.</div>'}
+      ${blanks}
+      <div class="note2">Downloaded to ~/Downloads: ${(r.downloaded||[]).map(esc).join(", ")}.
+        The bot never submits — you review and apply yourself.</div>
+    </div>`;
+  const body=$("dBody");
+  const prev=body.querySelector(".applyhelp"); if(prev) prev.remove();
+  body.insertAdjacentHTML("afterbegin", html); body.scrollTop=0;
+}
+async function markApplied(id){
+  await api().mark_applied(id,""); closeDrawer();
+  setStatus("✓ Marked applied — moved to Applied"); await load();
+}
+async function markResponded(id){
+  await api().mark_responded(id,""); closeDrawer();
+  setStatus("✓ Marked as replied — moved to Replies"); await load();
+}
+
+// ---------- data + nav ----------
+function setStatus(t){ $("statusMsg").textContent=t||""; }
+
+async function load(){
+  try {
+    summary = await api().dashboard_summary();
+    summary.registry = (await api().get_status()).registry;
+    $("modePill").textContent="connected"; $("modePill").className="pill ok";
+  } catch(e){
+    $("modePill").textContent="error"; $("modePill").className="pill bad";
+    setStatus("Refresh failed: "+e); return;
+  }
+  const p=summary.pipeline;
+  $("ct-new").textContent=p.new; $("ct-outstanding").textContent=p.outstanding;
+  $("ct-applied").textContent=p.applied; $("ct-responded").textContent=p.responded;
+  await render();
+}
+
+async function render(){
+  $("viewTitle").textContent = TITLES[view][0];
+  $("viewSub").textContent = TITLES[view][1];
+  if(view==="dashboard"){ renderDashboard(); return; }
+  if(view==="analytics"){ renderAnalytics(); return; }
+  if(view==="settings"){ renderSettings(); return; }
+  // list view
+  roles = (await api().list_roles(view)).roles;
+  renderFilters();
+  renderList();
+}
+
+function setView(v){
+  view=v; activeChip=null;
+  filters={ temp:new Set(), source:new Set(), loc:new Set(), q:"" };
+  $("search").value="";
+  document.querySelectorAll("#nav button").forEach(b=>b.classList.toggle("active",b.dataset.view===v));
+  render();
 }
 
 async function discover(){
-  $("discoverBtn").disabled = true; $("status").textContent = "Scanning last 72h…";
+  $("discoverBtn").disabled=true; setStatus("Scanning last 72h…");
   try {
     const r = await api().run_discovery(72);
-    $("status").textContent =
-      `Inserted ${r.jobs_inserted} · ${r.packets_ready} ready · ${r.network_status}`;
-  } catch(e){ $("status").textContent = "Discovery failed: " + e; }
-  $("discoverBtn").disabled = false; refresh();
+    setStatus(`Inserted ${r.jobs_inserted} · ${r.packets_ready} ready · ${r.network_status}`);
+  } catch(e){ setStatus("Discovery failed: "+e); }
+  $("discoverBtn").disabled=false; await load();
 }
 
-async function openPdf(id, kind){
-  const label = kind === "cover" ? "cover letter" : "résumé";
-  $("status").textContent = `Tailoring ${label}…`;
-  const r = await api().open_artifact(id, kind);
-  $("status").textContent = r.ok
-    ? `Downloaded ${label} PDF to your Downloads folder`
-    : `Error: ${r.error || "could not open"}`;
-}
-async function markApplied(id){
-  await api().mark_applied(id, "");
-  refresh();
-}
+// ---------- wiring ----------
+document.querySelectorAll("#nav button").forEach(b=>b.onclick=()=>setView(b.dataset.view));
+$("discoverBtn").onclick=discover;
+$("refreshBtn").onclick=load;
+$("drawerClose").onclick=closeDrawer;
+$("scrim").onclick=closeDrawer;
+$("clearFilters").onclick=()=>{ filters.temp.clear(); filters.source.clear(); filters.loc.clear();
+  filters.q=""; $("search").value=""; activeChip=null; renderFilters(); renderList(); };
+$("search").oninput=e=>{ filters.q=e.target.value; if(LIST_VIEWS.includes(view)) renderList(); };
 
-function setTab(name){
-  tab = name;
-  document.querySelectorAll("nav button").forEach(b =>
-    b.classList.toggle("active", b.dataset.tab === name));
-  refresh();
-}
-
-document.querySelectorAll("nav button").forEach(b =>
-  b.addEventListener("click", () => setTab(b.dataset.tab)));
-$("discoverBtn").addEventListener("click", discover);
-$("refreshBtn").addEventListener("click", refresh);
-
-window.addEventListener("pywebviewready", refresh);
-// Auto-refresh so the open window reflects new results without reopening.
-setInterval(() => { if (window.pywebview && tab !== "settings") refresh(); }, 15000);
-setTimeout(() => { if(!window.pywebview) $("modePill").textContent = "open via app"; }, 1200);
+window.addEventListener("pywebviewready", load);
+setInterval(()=>{ if(window.pywebview && !$("drawer").classList.contains("open")) load(); }, 15000);
+setTimeout(()=>{ if(!window.pywebview) $("modePill").textContent="open via app"; }, 1200);
 </script>
 </body>
 </html>
