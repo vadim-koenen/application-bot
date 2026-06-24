@@ -20,8 +20,10 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from application_bot.answers import build_answer_draft
+from application_bot.apply_helper import build_autofill_bookmarklet, build_autofill_spec
 from application_bot.assisted_apply import build_fill_plan
-from application_bot.config import load_config
+from application_bot.config import load_answer_bank, load_claim_evidence, load_config
 from application_bot.database import Database
 from application_bot.models import utc_now
 from application_bot.packets import generate_packet, packet_to_dict
@@ -242,6 +244,32 @@ class JobAppAPI:
             "outstanding" if ready else "new" if worth else "review"
         )
         return result
+
+    def apply_autofill_bookmarklet(self) -> dict[str, Any]:
+        """The reusable one-click autofill bookmarklet + a preview of what it fills.
+
+        Built from the operator's approved contact/identity and answer draft.
+        Saved once in the browser, it fills standard ATS fields on an open
+        application form. It never uploads files, ticks the attestation, or
+        submits — those stay the human's act.
+        """
+        try:
+            master = load_resume_master(self.config["resume_master"])
+            contact = master.get("contact", {}) or {}
+            identity = master.get("identity", {}) or {}
+            answer_bank = load_answer_bank(self.config["application_answer_bank"])
+            evidence = load_claim_evidence(self.config["claim_evidence"])
+            answers = build_answer_draft(answer_bank, evidence)
+        except (OSError, ValueError, KeyError) as exc:
+            return {"ok": False, "error": str(exc)}
+        spec = build_autofill_spec(contact, identity, answers)
+        fills = [f["concept"].replace("_", " ") for f in spec["fields"]]
+        fills += [q["concept"].replace("_", " ") for q in spec["yesno"]]
+        return {
+            "ok": True,
+            "bookmarklet": build_autofill_bookmarklet(contact, identity, answers),
+            "fills": fills,
+        }
 
     def make_artifacts(self, job_id: int) -> dict[str, Any]:
         database = self._db()

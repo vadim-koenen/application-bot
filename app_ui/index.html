@@ -192,6 +192,10 @@
                   color:var(--brand); margin:0 0 10px; }
   .applyhelp .kv .kk { color:var(--muted); }
   .note2 { font-size:12px; color:var(--muted); margin-top:8px; line-height:1.5; }
+  .settxt { line-height:1.6; color:#374151; margin:0 0 10px; font-size:13px; }
+  .bmbox { width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11px;
+           border:1px solid var(--line); border-radius:8px; padding:10px; background:#fafbfd;
+           color:#374151; resize:vertical; word-break:break-all; }
 
   /* ---- Add-job modal ---- */
   .modal { position:fixed; top:50%; left:50%; transform:translate(-50%,-48%) scale(.98);
@@ -416,9 +420,30 @@ function renderAnalytics(){
     </div>`;
 }
 
-function renderSettings(){
+async function renderSettings(){
   $("filters").style.display="none";
   $("content").innerHTML = `
+    <div class="card"><h3>One-click autofill bookmarklet</h3>
+      <p class="settxt">Fills the standard fields on an open application form —
+      name, email, phone, LinkedIn, website, location, current company, work
+      authorization, sponsorship. It never uploads your résumé, ticks the
+      “I certify” box, or submits — those stay your call. Save it once; use it on
+      every web-form role.</p>
+      <div id="bmFills" class="note2"></div>
+      <textarea id="bmText" class="bmbox" readonly rows="3">Loading…</textarea>
+      <div style="margin-top:10px;display:flex;gap:10px;align-items:center">
+        <button class="act" id="bmCopy">Copy bookmarklet</button>
+        <span id="bmCopied" class="note2" style="margin-top:0"></span>
+      </div>
+      <div class="settxt" style="margin-top:14px">
+        <b>Install (once):</b> in Chrome open Bookmark Manager (⌥⌘B) → ⋮ →
+        “Add new bookmark”. Name it <b>Job Autofill</b>, paste the text above as
+        the <b>URL</b>, and save it to your bookmarks bar.<br>
+        <b>Use (per role):</b> click <b>Start application</b> on a role to open its
+        form, then click your <b>Job Autofill</b> bookmark — fields fill, a banner
+        confirms the count. Attach the résumé from Downloads, tick the box, submit.
+      </div>
+    </div>
     <div class="card"><h3>Discovery</h3>
       <div class="kv"><span class="kk">Registry</span>${esc(summary.registry||"")}</div>
       <div class="kv"><span class="kk">Freshness</span>${summary.window_hours}h window</div>
@@ -427,13 +452,31 @@ function renderSettings(){
       <p style="line-height:1.6;color:#374151;margin:0">
       The bot <b>discovers</b> roles (27 ATS boards + Adzuna), <b>scores</b> fit
       (Hot / Warm / Cold), and <b>tailors</b> an ATS résumé + cover letter. Open a
-      role to review the fit, click <b>Apply →</b> to open the company's own form,
-      download the <b>Résumé / Cover PDF</b>, submit it yourself, then
-      <b>Mark applied</b>. When a recruiter replies, <b>Mark replied</b> to advance
-      it in the funnel.<br><br>
+      role to review the fit, click <b>Start application</b> to open the company's
+      own form (and save both PDFs to Downloads), use the <b>Job Autofill</b>
+      bookmark, submit it yourself, then <b>Mark applied</b>. When a recruiter
+      replies, <b>Mark replied</b> to advance it in the funnel.<br><br>
       The app never auto-submits applications and never fabricates claims — résumé
       content comes only from your approved master profile.</p>
     </div>`;
+  try {
+    const r = await api().apply_autofill_bookmarklet();
+    if(r && r.ok){
+      $("bmText").value = r.bookmarklet;
+      $("bmFills").textContent = "Fills: " + (r.fills||[]).join(", ");
+    } else {
+      $("bmText").value = "Could not build bookmarklet: " + ((r&&r.error)||"unknown");
+    }
+  } catch(e){ $("bmText").value = "Error: " + e; }
+  $("bmCopy").onclick = async ()=>{
+    const t=$("bmText"); t.focus(); t.select();
+    let ok=false;
+    try { await navigator.clipboard.writeText(t.value); ok=true; }
+    catch(e){ try { ok=document.execCommand("copy"); } catch(_){} }
+    $("bmCopied").textContent = ok
+      ? "✓ Copied — paste as the bookmark's URL"
+      : "Press ⌘C to copy the selected text";
+  };
 }
 
 function applyFilters(list){
