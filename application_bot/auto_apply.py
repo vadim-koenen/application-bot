@@ -39,6 +39,14 @@ _FILE_LABEL_JS = (
 )
 
 
+def _frames(page: Any) -> list[Any]:
+    """Search contexts to fill. A real Playwright Page exposes `.frames` (top
+    document + every iframe, including cross-origin — which Playwright can reach
+    even though page JS can't). Falls back to [page] for the test fakes."""
+    frames = getattr(page, "frames", None)
+    return list(frames) if frames else [page]
+
+
 def fill_page(
     page: Any,
     spec: dict[str, list[dict[str, Any]]],
@@ -47,46 +55,57 @@ def fill_page(
 ) -> dict[str, Any]:
     """Fill text fields, select yes/no answers, and attach files on an open page.
 
-    Operates on a Playwright Page (or a compatible fake in tests). NEVER clicks
-    Submit or ticks the attestation — it only fills, selects, and attaches.
-    Returns {filled, uploaded, warnings}.
+    Operates on a Playwright Page (or a compatible fake in tests), searching the
+    top document AND every iframe. NEVER clicks Submit or ticks the attestation —
+    it only fills, selects, and attaches. Returns {filled, uploaded, warnings}.
     """
     filled: list[str] = []
     uploaded: list[str] = []
     warnings: list[str] = []
+    frames = _frames(page)
 
     for field in spec.get("fields", []):
         matched = False
-        for syn in field["syn"]:
-            try:
-                loc = page.get_by_label(syn, exact=False)
-                if loc.count() < 1:
+        for frame in frames:
+            for syn in field["syn"]:
+                try:
+                    loc = frame.get_by_label(syn, exact=False)
+                    if loc.count() < 1:
+                        continue
+                    loc.first.fill(field["value"])
+                    filled.append(field["concept"])
+                    matched = True
+                    break
+                except Exception:  # noqa: BLE001 - best-effort per field
                     continue
-                loc.first.fill(field["value"])
-                filled.append(field["concept"])
-                matched = True
+            if matched:
                 break
-            except Exception:  # noqa: BLE001 - best-effort per field
-                continue
         if not matched:
             warnings.append(f"no field matched: {field['concept']}")
 
     for question in spec.get("yesno", []):
-        for syn in question["syn"]:
-            try:
-                loc = page.get_by_label(syn, exact=False)
-                if loc.count() < 1:
+        done = False
+        for frame in frames:
+            for syn in question["syn"]:
+                try:
+                    loc = frame.get_by_label(syn, exact=False)
+                    if loc.count() < 1:
+                        continue
+                    loc.first.select_option(label=question["answer"])
+                    filled.append(question["concept"])
+                    done = True
+                    break
+                except Exception:  # noqa: BLE001
                     continue
-                loc.first.select_option(label=question["answer"])
-                filled.append(question["concept"])
+            if done:
                 break
-            except Exception:  # noqa: BLE001
-                continue
 
-    try:
-        file_inputs = page.query_selector_all("input[type='file']")
-    except Exception:  # noqa: BLE001
-        file_inputs = []
+    file_inputs: list[Any] = []
+    for frame in frames:
+        try:
+            file_inputs.extend(frame.query_selector_all("input[type='file']"))
+        except Exception:  # noqa: BLE001
+            continue
     for el in file_inputs:
         try:
             label = (el.evaluate(_FILE_LABEL_JS) or "").lower()

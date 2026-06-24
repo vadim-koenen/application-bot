@@ -116,6 +116,28 @@ def test_unlabeled_single_file_input_defaults_to_resume():
     assert result["uploaded"] == ["resume"]
 
 
+class MultiFramePage:
+    """A page whose form lives in an iframe (the common ATS embed pattern)."""
+
+    def __init__(self, frames):
+        self.frames = frames
+
+
+def test_fill_page_searches_iframes():
+    top = FakePage(labels=[], file_labels=[])  # top document has no form
+    iframe = FakePage(labels=["First Name", "Email"], file_labels=["Resume"])
+    page = MultiFramePage([top, iframe])
+    result = fill_page(page, SPEC, "/tmp/resume.pdf", None)
+    # The fields in the iframe were filled (Playwright can reach cross-origin frames).
+    assert "first_name" in result["filled"]
+    assert "email" in result["filled"]
+    assert "Vadim" in iframe.rec["fill"]
+    assert "/tmp/resume.pdf" in iframe.rec["files"]
+    # The empty top frame was never written to and nothing was submitted.
+    assert top.rec["fill"] == []
+    assert top.rec["click"] == [] and iframe.rec["click"] == []
+
+
 def test_auto_fill_application_without_playwright(monkeypatch):
     import builtins
 
