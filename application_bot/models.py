@@ -121,12 +121,14 @@ class Job:
 
     @property
     def dedupe_key(self) -> str:
+        # Identify a posting by stable fields only — company + title + apply URL.
+        # The JD text (content_hash) and location strings drift between scans, so
+        # including them produced a NEW row on every re-scan (duplicate rows, and
+        # applied roles resurfacing as fresh). Lowercased/stripped for stability.
         return content_hash(
-            self.company,
-            self.title,
-            self.location,
-            self.apply_url,
-            self.content_hash,
+            self.company.strip().lower(),
+            self.title.strip().lower(),
+            self.apply_url.strip(),
         )
 
     def to_dict(self) -> dict[str, Any]:
