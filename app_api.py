@@ -15,6 +15,7 @@ the user to apply + mark applied.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -23,7 +24,14 @@ from typing import Any
 from application_bot.answers import build_answer_draft
 from application_bot.apply_helper import build_autofill_bookmarklet, build_autofill_spec
 from application_bot.assisted_apply import build_fill_plan
-from application_bot.config import load_answer_bank, load_claim_evidence, load_config
+from application_bot.claims import matched_approved_keywords
+from application_bot.config import (
+    load_answer_bank,
+    load_claim_evidence,
+    load_claim_inventory,
+    load_config,
+)
+from application_bot.cover_letter_llm import draft_cover_letter_llm
 from application_bot.database import Database
 from application_bot.models import utc_now
 from application_bot.packets import generate_packet, packet_to_dict
@@ -71,9 +79,25 @@ class JobAppAPI:
         return [str(item) for item in (master.get("selected_impact") or [])]
 
     def _cover_letter(self, database: Database, job: Any) -> str:
-        # Always regenerate so the letter reflects the current role and the
-        # latest template (the older cached packets held the weak boilerplate).
+        # Prefer a Claude-drafted letter when an API key is configured. The draft
+        # passes a fabrication guard (cover_letter_llm.validate_cover_letter); on
+        # no-key / SDK-absent / error / validation failure we fall back to the
+        # deterministic, claim-safe template. The letter always regenerates fresh.
         policy = evaluate_job_submission_policy(job, self.config)
+        try:
+            master = load_resume_master(self.config["resume_master"])
+            inventory = load_claim_inventory(self.config["resume_claim_inventory"])
+            drafted = draft_cover_letter_llm(
+                job,
+                master,
+                inventory,
+                matched=matched_approved_keywords(job, inventory),
+                model=self.config.get("cover_letter_model"),
+            )
+            if drafted:
+                return drafted
+        except (OSError, ValueError, KeyError):
+            pass
         return generate_packet(
             job, self.config, policy, impact_highlights=self._approved_impact()
         ).cover_letter
@@ -271,6 +295,29 @@ class JobAppAPI:
             "fills": fills,
         }
 
+    def cover_letter_status(self) -> dict[str, Any]:
+        """Whether cover letters are drafted by Claude or the offline template.
+
+        Claude drafting needs the `anthropic` SDK installed AND an
+        ANTHROPIC_API_KEY in the environment; otherwise the deterministic
+        claim-safe template is used.
+        """
+        import importlib.util
+
+        has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
+        has_sdk = importlib.util.find_spec("anthropic") is not None
+        model = (
+            self.config.get("cover_letter_model")
+            or os.environ.get("COVER_LETTER_MODEL")
+            or "claude-opus-4-8"
+        )
+        return {
+            "enabled": has_key and has_sdk,
+            "has_key": has_key,
+            "has_sdk": has_sdk,
+            "model": model,
+        }
+
     def make_artifacts(self, job_id: int) -> dict[str, Any]:
         database = self._db()
         job = database.get_job(int(job_id))
@@ -298,17 +345,18 @@ class JobAppAPI:
         return str(dest)
 
     def open_artifact(self, job_id: int, kind: str = "resume") -> dict[str, Any]:
-        """Generate the role's optimized PDF, copy it to ~/Downloads, and open it.
+        """Generate the role's optimized PDF and save it to ~/Downloads.
 
-        kind: "resume" or "cover". The file lands in the Downloads folder (a real
-        download) and opens in the OS default viewer.
+        kind: "resume" or "cover". The file is downloaded only — it is NOT
+        opened in a viewer (the operator wants the file in the folder, not a
+        Preview window popping up).
         """
         result = self.make_artifacts(int(job_id))
         if not result.get("ok"):
             return result
         source = result["cover_pdf"] if kind == "cover" else result["resume_pdf"]
         try:
-            dest = self._download(source, open_after=True)
+            dest = self._download(source, open_after=False)
         except OSError as exc:  # pragma: no cover - platform dependent
             return {"ok": False, "error": str(exc), "path": source}
         return {"ok": True, "kind": kind, "path": dest, "downloaded": True}
