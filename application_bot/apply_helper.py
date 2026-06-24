@@ -110,19 +110,28 @@ def build_autofill_spec(
 # one line). Sets values via the native setter + input/change events so React/
 # Angular forms register them; skips file/hidden/submit/checkbox/radio/password
 # and never overwrites a field the human already filled.
+#
+# `gather` collects fields from the top document AND, recursively, from shadow
+# DOM (Workday-style web components) and SAME-ORIGIN iframes. Cross-origin
+# iframes (e.g. a careers site embedding job-boards.greenhouse.io) are walled off
+# by the browser and can't be reached — open that form in its own tab instead.
 _BOOKMARKLET = (
     "javascript:(function(){"
     "var D=%s;"
     "function norm(s){return (s||'').toLowerCase().replace(/\\s+/g,' ').trim();}"
+    "function gather(root,acc){try{root.querySelectorAll('input,textarea,select').forEach(function(e){acc.push(e);});"
+    "root.querySelectorAll('*').forEach(function(e){if(e.shadowRoot)gather(e.shadowRoot,acc);});"
+    "root.querySelectorAll('iframe').forEach(function(f){try{if(f.contentDocument)gather(f.contentDocument,acc);}catch(e){}});}catch(e){}}"
     "function lab(el){var t='';"
-    "try{if(el.id){var l=document.querySelector('label[for=\"'+(window.CSS&&CSS.escape?CSS.escape(el.id):el.id)+'\"]');if(l)t+=' '+l.textContent;}}catch(e){}"
+    "try{var rn=(el.getRootNode&&el.getRootNode())||document;"
+    "if(el.id&&rn.querySelector){var l=rn.querySelector('label[for=\"'+(window.CSS&&CSS.escape?CSS.escape(el.id):el.id)+'\"]');if(l)t+=' '+l.textContent;}}catch(e){}"
     "var p=el.closest&&el.closest('label');if(p)t+=' '+p.textContent;"
     "var w=el.closest&&el.closest('div,fieldset,li');if(w){var wl=w.querySelector('label');if(wl)t+=' '+wl.textContent;}"
     "t+=' '+(el.name||'')+' '+(el.id||'')+' '+(el.placeholder||'')+' '+((el.getAttribute&&el.getAttribute('aria-label'))||'');return norm(t);}"
     "function setv(el,v){try{var pr=el.tagName==='TEXTAREA'?window.HTMLTextAreaElement.prototype:window.HTMLInputElement.prototype;"
     "Object.getOwnPropertyDescriptor(pr,'value').set.call(el,v);}catch(e){el.value=v;}"
     "el.dispatchEvent(new Event('input',{bubbles:true}));el.dispatchEvent(new Event('change',{bubbles:true}));}"
-    "var els=[].slice.call(document.querySelectorAll('input,textarea,select')),used=[],n=0;"
+    "var els=[];gather(document,els);var used=[],n=0;"
     "function mark(el){used.push(el);}function isUsed(el){return used.indexOf(el)>=0;}"
     "D.fields.forEach(function(f){for(var i=0;i<els.length;i++){var el=els[i];if(isUsed(el)||el.tagName==='SELECT')continue;"
     "var ty=(el.type||'text').toLowerCase();if(['file','hidden','submit','button','checkbox','radio','password'].indexOf(ty)>=0)continue;"
