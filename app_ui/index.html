@@ -628,6 +628,8 @@ async function openDrawer(id){
   let foot="";
   foot += `<button class="apply" onclick="startApplication(${d.id})">`
         + `${d.is_form ? "Start application →" : "Prepare application"}</button>`;
+  if(d.is_form)
+    foot += `<button class="ghost" onclick="autoApply(${d.id})">Auto-fill in browser (beta)</button>`;
   foot += `<button class="ghost" onclick="openPdf(${d.id},'resume')">Résumé PDF</button>`;
   foot += `<button class="ghost" onclick="openPdf(${d.id},'cover')">Cover PDF</button>`;
   if(d.status!=="APPLIED" && d.status!=="RESPONDED")
@@ -681,6 +683,16 @@ function renderApplyHelper(r){
   const body=$("dBody");
   const prev=body.querySelector(".applyhelp"); if(prev) prev.remove();
   body.insertAdjacentHTML("afterbegin", html); body.scrollTop=0;
+}
+async function autoApply(id){
+  drawerMsg("Launching a browser to fill the form & attach your documents…");
+  try {
+    const r = await api().auto_apply(id);
+    if(!r || !r.ok){ drawerMsg("Auto-fill: "+((r&&r.error)||"failed"), true); return; }
+    const up = (r.uploaded||[]).join(" + ") || "no files";
+    drawerMsg(`✓ Filled ${(r.filled||[]).length} fields, attached ${up}. `
+      + "Review, tick the box, and submit — the app never submits.");
+  } catch(e){ drawerMsg("Auto-fill error: "+e, true); }
 }
 async function markApplied(id){
   await api().mark_applied(id,""); closeDrawer();

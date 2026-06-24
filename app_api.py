@@ -295,6 +295,44 @@ class JobAppAPI:
             "fills": fills,
         }
 
+    def auto_apply(self, job_id: int) -> dict[str, Any]:
+        """M45 (beta): drive a real browser to fill the form AND attach the
+        résumé/cover, then STOP at Submit for the human.
+
+        Only for web-form roles. Saves both PDFs to ~/Downloads, builds the
+        approved fill spec, and hands off to the Playwright driver. NEVER submits.
+        """
+        database = self._db()
+        job = database.get_job(int(job_id))
+        if not job:
+            return {"ok": False, "error": f"Job {job_id} not found"}
+        if not str(job.apply_url or "").lower().startswith("http"):
+            return {
+                "ok": False,
+                "error": "This role is recruiter/ATS-routed (no web form). Use Prepare application instead.",
+            }
+        artifacts = self.make_artifacts(int(job_id))
+        if not artifacts.get("ok"):
+            return artifacts
+        try:
+            resume_pdf = self._download(artifacts["resume_pdf"], open_after=False)
+            cover_pdf = self._download(artifacts["cover_pdf"], open_after=False)
+            master = load_resume_master(self.config["resume_master"])
+            answers = build_answer_draft(
+                load_answer_bank(self.config["application_answer_bank"]),
+                load_claim_evidence(self.config["claim_evidence"]),
+            )
+            spec = build_autofill_spec(
+                master.get("contact", {}) or {},
+                master.get("identity", {}) or {},
+                answers,
+            )
+        except (OSError, ValueError, KeyError) as exc:
+            return {"ok": False, "error": str(exc)}
+        from application_bot.auto_apply import auto_fill_application
+
+        return auto_fill_application(job.apply_url, spec, resume_pdf, cover_pdf)
+
     def cover_letter_status(self) -> dict[str, Any]:
         """Whether cover letters are drafted by Claude or the offline template.
 
