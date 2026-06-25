@@ -157,9 +157,21 @@ def build_resume_document(
     contact = master["contact"]
     align = keyword_alignment(job, master, config)
     contact_bits = [
-        contact.get("location"), contact.get("email"),
-        contact.get("website"), contact.get("linkedin"),
+        contact.get("location"), contact.get("phone"), contact.get("email"),
+        contact.get("website"), contact.get("linkedin"), contact.get("github"),
     ]
+    # Categorized skills (Platforms / Lifecycle / …) for the executive layout;
+    # falls back to the flat competency list if the master uses a plain list.
+    raw_skills = master.get("skills")
+    skill_categories = (
+        [
+            {"label": str(label), "items": [str(s) for s in items]}
+            for label, items in raw_skills.items()
+            if items
+        ]
+        if isinstance(raw_skills, dict)
+        else []
+    )
     experience = [
         {
             "company": str(role.get("company", "")),
@@ -180,6 +192,7 @@ def build_resume_document(
         "relevant": list(align["matched"][:10]),
         "summary": " ".join(str(master.get("summary", "")).split()),
         "competencies": _ordered_competencies(job, master),
+        "skill_categories": skill_categories,
         "impact": [str(x) for x in master.get("selected_impact", [])],
         "experience": experience,
         "education": [str(x) for x in master.get("education", [])],
