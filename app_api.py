@@ -45,7 +45,11 @@ from application_bot.pipeline import (
     run_dry_pipeline,
 )
 from application_bot.policy import evaluate_job_submission_policy
-from application_bot.resume import load_resume_master, render_ats_resume_text
+from application_bot.resume import (
+    build_resume_document,
+    load_resume_master,
+    render_ats_resume_text,
+)
 from application_bot.screening_llm import draft_screening_answers, is_sensitive_question
 
 
@@ -416,8 +420,13 @@ class JobAppAPI:
             return {"ok": False, "error": f"Job {job_id} not found"}
         master = load_resume_master(self.config["resume_master"])
         resume_text = render_ats_resume_text(job, master, self.config)
+        resume_document = build_resume_document(job, master, self.config)
         pdfs = export_application_pdfs(
-            job, resume_text, self._cover_letter(database, job), self.export_root
+            job,
+            resume_text,
+            self._cover_letter(database, job),
+            self.export_root,
+            resume_document=resume_document,
         )
         return {"ok": True, **pdfs}
 
