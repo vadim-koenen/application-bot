@@ -243,10 +243,19 @@ def discover_jsearch(
         return {"source": "jsearch", "enabled": False,
                 "reason": "RAPIDAPI_KEY not set"}
     queries = queries or config.get("jsearch_queries") or DEFAULT_JSEARCH_QUERIES
+    host = host or os.getenv("RAPIDAPI_JSEARCH_HOST", "jsearch.p.rapidapi.com")
     if transport is None:
-        host = host or os.getenv("RAPIDAPI_JSEARCH_HOST", "jsearch.p.rapidapi.com")
         transport = rapidapi_transport(api_key, host)
-    adapter = JSearchAdapter(transport=transport)
+    # Endpoint is configurable so a different RapidAPI jobs API can be pointed in
+    # without code: full URL via RAPIDAPI_JSEARCH_URL, else host + path (default
+    # /search). The X-RapidAPI-Host header still uses `host`.
+    search_url = os.getenv("RAPIDAPI_JSEARCH_URL")
+    if not search_url:
+        path = os.getenv("RAPIDAPI_JSEARCH_PATH", "/search")
+        if not path.startswith("/"):
+            path = "/" + path
+        search_url = f"https://{host}{path}"
+    adapter = JSearchAdapter(transport=transport, search_url=search_url)
     date_posted = "today" if hours <= 24 else "3days" if hours <= 72 else "week"
     now = datetime.now(UTC)
     seen = inserted = dropped_stale = 0
