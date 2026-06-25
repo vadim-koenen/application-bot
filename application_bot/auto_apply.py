@@ -47,6 +47,49 @@ def _frames(page: Any) -> list[Any]:
     return list(frames) if frames else [page]
 
 
+# Visible "Apply" controls on a job-description page, most-specific first.
+_APPLY_NAMES = ("apply for this job", "apply now", "apply to this job", "apply")
+
+
+def _count_text_inputs(page: Any) -> int:
+    """How many fillable text fields are present across all frames."""
+    total = 0
+    for frame in _frames(page):
+        try:
+            total += len(frame.query_selector_all("input:not([type='hidden']), textarea"))
+        except Exception:  # noqa: BLE001
+            continue
+    return total
+
+
+def reveal_form(page: Any) -> bool:
+    """If we landed on a job-description page (no form yet), click an "Apply"
+    control to reveal the application form, then return True.
+
+    Clicking "Apply" is navigation, not submission — it only opens the form. We
+    skip it entirely when a form is already present, and we never match a
+    "Submit"/"Send" control. Returns False if nothing was clicked.
+    """
+    if _count_text_inputs(page) >= 2:
+        return False  # the form is already here
+    for frame in _frames(page):
+        for role in ("button", "link"):
+            for name in _APPLY_NAMES:
+                try:
+                    loc = frame.get_by_role(role, name=name, exact=False)
+                    if loc.count() < 1:
+                        continue
+                    loc.first.click()
+                    try:
+                        page.wait_for_load_state("domcontentloaded", timeout=15000)
+                    except Exception:  # noqa: BLE001
+                        pass
+                    return True
+                except Exception:  # noqa: BLE001
+                    continue
+    return False
+
+
 def fill_page(
     page: Any,
     spec: dict[str, list[dict[str, Any]]],
@@ -170,6 +213,11 @@ def auto_fill_application(
             browser = pw.chromium.launch(headless=not headed)
             page = browser.new_page()
             page.goto(apply_url, wait_until="domcontentloaded", timeout=45000)
+            # If this is a job-description page, click "Apply" to reveal the form.
+            try:
+                reveal_form(page)
+            except Exception:  # noqa: BLE001
+                pass
             result.update(fill_page(page, spec, resume_pdf, cover_pdf))
             result["ok"] = True
             done.set()

@@ -8,7 +8,7 @@ degrades gracefully when Playwright isn't installed.
 
 from __future__ import annotations
 
-from application_bot.auto_apply import auto_fill_application, fill_page
+from application_bot.auto_apply import auto_fill_application, fill_page, reveal_form
 
 SPEC = {
     "fields": [
@@ -136,6 +136,61 @@ def test_fill_page_searches_iframes():
     # The empty top frame was never written to and nothing was submitted.
     assert top.rec["fill"] == []
     assert top.rec["click"] == [] and iframe.rec["click"] == []
+
+
+class _RoleLoc:
+    def __init__(self, present, rec):
+        self._present = present
+        self._rec = rec
+
+    def count(self):
+        return 1 if self._present else 0
+
+    @property
+    def first(self):
+        return self
+
+    def click(self, *a, **k):
+        self._rec.append("apply-click")
+
+
+class RevealPage:
+    """Fake page for reveal_form: N text inputs + maybe an Apply control."""
+
+    def __init__(self, text_inputs, apply_present):
+        self.text_inputs = text_inputs
+        self.apply_present = apply_present
+        self.clicks = []
+
+    def query_selector_all(self, selector):
+        if "file" in selector:
+            return []
+        return [object()] * self.text_inputs
+
+    def get_by_role(self, role, name=None, exact=False):
+        present = self.apply_present and role in ("button", "link") and "apply" in (name or "").lower()
+        return _RoleLoc(present, self.clicks)
+
+    def wait_for_load_state(self, *a, **k):
+        pass
+
+
+def test_reveal_form_clicks_apply_when_no_form_present():
+    page = RevealPage(text_inputs=0, apply_present=True)
+    assert reveal_form(page) is True
+    assert page.clicks == ["apply-click"]
+
+
+def test_reveal_form_skips_when_form_already_present():
+    page = RevealPage(text_inputs=6, apply_present=True)
+    assert reveal_form(page) is False
+    assert page.clicks == []  # didn't click anything
+
+
+def test_reveal_form_no_apply_control():
+    page = RevealPage(text_inputs=0, apply_present=False)
+    assert reveal_form(page) is False
+    assert page.clicks == []
 
 
 def test_auto_fill_application_without_playwright(monkeypatch):
