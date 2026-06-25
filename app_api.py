@@ -45,6 +45,7 @@ from application_bot.pipeline import (
 )
 from application_bot.policy import evaluate_job_submission_policy
 from application_bot.resume import load_resume_master, render_ats_resume_text
+from application_bot.screening_llm import draft_screening_answers, is_sensitive_question
 
 
 class JobAppAPI:
@@ -354,6 +355,46 @@ class JobAppAPI:
             "has_key": has_key,
             "has_sdk": has_sdk,
             "model": model,
+        }
+
+    def draft_answers(
+        self, job_id: int, questions: list[str] | str
+    ) -> dict[str, Any]:
+        """Draft claim-safe answers to a role's screening/essay questions.
+
+        BOUNDARY: each drafted answer passes the same fabrication guard as the
+        cover letter, and comp/legal/identity questions are never auto-answered
+        — they're returned in `skipped` for the human. The answers are drafts to
+        review and paste; nothing is submitted.
+
+        `questions` accepts a list or a newline-separated string (the UI textarea
+        passes one per line).
+        """
+        database = self._db()
+        job = database.get_job(int(job_id))
+        if not job:
+            return {"ok": False, "error": f"Job {job_id} not found"}
+        raw = questions.splitlines() if isinstance(questions, str) else list(questions or [])
+        asked = [q.strip() for q in (str(x) for x in raw) if q.strip()]
+        try:
+            master = load_resume_master(self.config["resume_master"])
+            inventory = load_claim_inventory(self.config["resume_claim_inventory"])
+        except (OSError, ValueError, KeyError) as exc:
+            return {"ok": False, "error": str(exc)}
+        drafted = draft_screening_answers(
+            job, master, inventory, asked, model=self.config.get("cover_letter_model")
+        )
+        status = self.cover_letter_status()
+        return {
+            "ok": True,
+            # Drafts to review, in the order asked.
+            "answers": [
+                {"question": q, "answer": drafted[q]} for q in asked if q in drafted
+            ],
+            # Comp/legal/identity questions — always left for the human.
+            "skipped": [q for q in asked if is_sensitive_question(q)],
+            "enabled": status["enabled"],
+            "model": status["model"],
         }
 
     def make_artifacts(self, job_id: int) -> dict[str, Any]:

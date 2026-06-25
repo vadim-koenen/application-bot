@@ -102,6 +102,13 @@ def validate_cover_letter(
     return True
 
 
+# The guard is content-agnostic — it rejects any text that introduces a number,
+# degree/cert/employer, or comp/visa term not grounded in the approved profile.
+# M49 reuses it verbatim for screening-question answers; this alias names that
+# generalized intent without duplicating the logic.
+validate_against_profile = validate_cover_letter
+
+
 def _build_user_message(job: Any, profile: dict[str, Any], matched: list[str]) -> str:
     identity = profile.get("identity") or {}
     business = "Koenen Revenue Systems (KRS)"
