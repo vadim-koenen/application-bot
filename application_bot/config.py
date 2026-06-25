@@ -122,6 +122,21 @@ DEFAULT_CONFIG: dict[str, Any] = {
             # enough to avoid out-of-state collisions.
             "tarrant", "collin", "rockwall", "kaufman",
         ],
+        # Foreign-country / non-US markers. A "remote" role pinned to one of these
+        # (with no US eligibility marker) is treated as off-geography — not
+        # workable from DFW — so it's dropped like a non-DFW onsite role.
+        "non_us": [
+            "canada", "ontario", "toronto", "vancouver", "british columbia",
+            "quebec", "montreal", "united kingdom", "england", "london",
+            "scotland", "ireland", "dublin", "france", "paris", "germany",
+            "berlin", "munich", "netherlands", "amsterdam", "spain", "madrid",
+            "barcelona", "portugal", "lisbon", "poland", "warsaw", "romania",
+            "india", "bengaluru", "bangalore", "hyderabad", "pune", "japan",
+            "tokyo", "singapore", "australia", "sydney", "melbourne", "mexico",
+            "brazil", "argentina", "israel", "tel aviv", "philippines", "manila",
+            "china", "shanghai", "shenzhen", "hong kong", "united arab emirates",
+            "dubai", "south africa", "nigeria", "kenya",
+        ],
     },
     "salary_minimums": {
         "default": 140000,

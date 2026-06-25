@@ -144,6 +144,40 @@ def is_fresh(value: Any, hours: int, *, now: datetime | None = None) -> bool | N
     )
 
 
+def rescore_all(
+    database: Database,
+    config: dict[str, Any],
+    *,
+    skip_statuses: tuple[str, ...] = ("APPLIED", "RESPONDED"),
+) -> dict[str, Any]:
+    """Re-score every non-terminal job in place after a scoring-rule change.
+
+    Used to apply a tightened rule (e.g. the geography gate) to roles already in
+    the DB. Skips roles the operator has already acted on (APPLIED / RESPONDED)
+    so their pipeline stage and history are preserved. Returns before/after
+    verdict counts and how many verdicts changed."""
+    before: dict[str, int] = {}
+    after: dict[str, int] = {}
+    changed = 0
+    for job in database.list_jobs():
+        if str(job.status) in skip_statuses:
+            continue
+        old = str(job.verdict)
+        result = score_job(job, config)
+        new = str(result.verdict)
+        before[old] = before.get(old, 0) + 1
+        after[new] = after.get(new, 0) + 1
+        if new != old:
+            changed += 1
+        database.save_score(int(job.id), result)
+    return {
+        "rescored": sum(after.values()),
+        "changed": changed,
+        "before": before,
+        "after": after,
+    }
+
+
 DEFAULT_ADZUNA_QUERIES = [
     "marketing operations director",
     "revenue operations director",

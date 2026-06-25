@@ -175,22 +175,34 @@ def score_job(job: Job, config: dict[str, Any]) -> ScoreResult:
         )
     )
     generic_remote = job.location.strip().lower() in {"", "remote", "remote us"}
-    # Hard geography gate: exclude roles CONFIRMED off-geography (onsite/hybrid in
-    # a non-DFW city). Remote, DFW, and unknown-location roles pass — we only hard-
-    # exclude when we can confirm the role is somewhere other than remote/DFW, so
-    # curated roles with a missing location field aren't wrongly dropped.
+    # A "remote" role pinned to a foreign country with no US marker isn't workable
+    # from DFW, so it's off-geography too (operator is DFW-based, not relocating).
+    confirmed_foreign = (
+        bool(_contains_any(location, preferences.get("non_us", [])))
+        and not explicit_us
+        and not is_dfw
+    )
+    remote_us = is_remote and not confirmed_foreign
+    # Hard geography gate: exclude roles we can CONFIRM are off-geography — onsite/
+    # hybrid outside DFW, or remote pinned to a foreign country. DFW, US/ambiguous
+    # remote, and genuinely unknown-location roles still pass: we drop only on
+    # positive evidence, so a blank-location remote role isn't wrongly lost.
     require_geo = bool(config.get("require_remote_or_dfw", True))
     confirmed_offsite = (is_onsite or is_hybrid) and not is_dfw and not is_remote
-    location_ok = not confirmed_offsite
+    off_geography = confirmed_offsite or (is_remote and confirmed_foreign)
+    location_ok = not off_geography
     if require_geo and not location_ok:
-        risk_flags.append("Off-geography: confirmed onsite/hybrid outside DFW.")
-    if is_remote and (explicit_us or generic_remote):
+        risk_flags.append("Off-geography: not DFW and not US-remote.")
+    if remote_us and (explicit_us or generic_remote):
         dimensions["location"] = 12
         reasons.append("Remote US-compatible location.")
-    elif is_remote:
+    elif remote_us:
         dimensions["location"] = 6
         reasons.append("Remote role; US eligibility is not explicit.")
         risk_flags.append("Confirm that the remote geography includes the United States.")
+    elif is_remote and confirmed_foreign:
+        dimensions["location"] = -12
+        risk_flags.append("Remote but outside the US — not workable from DFW.")
     elif is_hybrid and is_dfw:
         dimensions["location"] = 7
         reasons.append("Dallas/Plano/DFW hybrid location fit.")
