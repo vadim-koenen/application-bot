@@ -196,6 +196,10 @@
   .bmbox { width:100%; font-family:ui-monospace,Menlo,monospace; font-size:11px;
            border:1px solid var(--line); border-radius:8px; padding:10px; background:#fafbfd;
            color:#374151; resize:vertical; word-break:break-all; }
+  .qbox { width:100%; font:inherit; font-size:12.5px; border:1px solid var(--line);
+          border-radius:8px; padding:9px 11px; background:#fafbfd; color:#374151;
+          resize:vertical; margin:8px 0; box-sizing:border-box; }
+  .qbox:focus { outline:none; border-color:var(--brand); }
 
   /* ---- Add-job modal ---- */
   .modal { position:fixed; top:50%; left:50%; transform:translate(-50%,-48%) scale(.98);
@@ -623,7 +627,13 @@ async function openDrawer(id){
     ${reasons?`<div class="sec"><h4>Why it fits</h4><ul>${reasons}</ul></div>`:""}
     ${risks?`<div class="sec"><h4>Watch-outs</h4><ul>${risks}</ul></div>`:""}
     ${d.description?`<div class="sec"><h4>Job description</h4><div class="jd">${esc(d.description)}</div></div>`:""}
-    ${d.requirements?`<div class="sec"><h4>Requirements</h4><div class="jd">${esc(d.requirements)}</div></div>`:""}`;
+    ${d.requirements?`<div class="sec"><h4>Requirements</h4><div class="jd">${esc(d.requirements)}</div></div>`:""}
+    <div class="sec"><h4>Screening / essay answers</h4>
+      <div class="note2" style="margin-top:0">Paste the role's screening questions (one per line). Claude drafts claim-safe answers for you to review — comp / legal / identity questions are always left for you.</div>
+      <textarea id="screenQs" class="qbox" rows="3" placeholder="Why are you interested in this role?&#10;Describe your RevOps experience."></textarea>
+      <button class="ghost" onclick="draftAnswers(${d.id})">Draft answers</button>
+      <div id="screenOut"></div>
+    </div>`;
 
   let foot="";
   foot += `<button class="apply" onclick="startApplication(${d.id})">`
@@ -683,6 +693,29 @@ function renderApplyHelper(r){
   const body=$("dBody");
   const prev=body.querySelector(".applyhelp"); if(prev) prev.remove();
   body.insertAdjacentHTML("afterbegin", html); body.scrollTop=0;
+}
+function skippedHtml(skipped){
+  return (skipped&&skipped.length)
+    ? `<div class="note2"><b>Left for you (sensitive):</b> ${skipped.map(esc).join(" · ")}</div>` : "";
+}
+async function draftAnswers(id){
+  const out=$("screenOut");
+  const asked=($("screenQs").value||"").split("\n").map(s=>s.trim()).filter(Boolean);
+  if(!asked.length){ out.innerHTML=`<div class="note2">Enter at least one question, one per line.</div>`; return; }
+  out.innerHTML=`<div class="note2">Drafting…</div>`;
+  try {
+    const r=await api().draft_answers(id, asked);
+    if(!r || !r.ok){ out.innerHTML=`<div class="note2">Error: ${esc((r&&r.error)||"could not draft")}</div>`; return; }
+    if(!r.enabled){
+      out.innerHTML=`<div class="note2">Claude drafting is off — add API credits (console.anthropic.com → Plans &amp; Billing) to enable. Sensitive questions are always left for you.</div>`+skippedHtml(r.skipped);
+      return;
+    }
+    const blocks=(r.answers||[]).map(a=>
+      `<div class="applyhelp"><h4>${esc(a.question)}</h4><div class="jd">${esc(a.answer)}</div></div>`).join("");
+    const none=(!r.answers||!r.answers.length)
+      ? `<div class="note2">No answers could be safely drafted from your approved profile — answer these yourself.</div>` : "";
+    out.innerHTML=blocks+none+skippedHtml(r.skipped);
+  } catch(e){ out.innerHTML=`<div class="note2">Error: ${esc(String(e))}</div>`; }
 }
 async function autoApply(id){
   drawerMsg("Launching a browser to fill the form & attach your documents…");
