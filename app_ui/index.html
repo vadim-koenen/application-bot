@@ -200,6 +200,8 @@
           border-radius:8px; padding:9px 11px; background:#fafbfd; color:#374151;
           resize:vertical; margin:8px 0; box-sizing:border-box; }
   .qbox:focus { outline:none; border-color:var(--brand); }
+  .fudue { font-size:10px; font-weight:700; color:#e08a00; margin-left:6px;
+           white-space:nowrap; vertical-align:1px; }
 
   /* ---- Add-job modal ---- */
   .modal { position:fixed; top:50%; left:50%; transform:translate(-50%,-48%) scale(.98);
@@ -369,6 +371,7 @@ function renderDashboard(){
     ["Outstanding", p.outstanding],
     ["Applied", p.applied],
     ["Replies", p.responded],
+    ["Follow-ups due", summary.followups_due||0],
     ["Avg fit (pipeline)", summary.avg_score==null?"—":summary.avg_score],
   ].map(([k,v])=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("");
 
@@ -574,7 +577,7 @@ function renderList(){
       <tr data-id="${r.id}">
         <td><div class="acct">
           <div class="avatar" style="background:${avatarColor(r.company)}">${esc((r.company||"?").trim()[0]||"?").toUpperCase()}</div>
-          <div><div class="nm">${esc(r.company)}</div><div class="loc">${esc(r.location||"Location n/a")}</div></div>
+          <div><div class="nm">${esc(r.company)}${r.reminder_due?` <span class="fudue" title="Follow-up due ${esc(r.reminder_at)}">● due</span>`:""}</div><div class="loc">${esc(r.location||"Location n/a")}</div></div>
         </div></td>
         <td class="ttl">${esc(r.title)}</td>
         <td>${tempBadge(r.grade)}</td>
@@ -633,6 +636,14 @@ async function openDrawer(id){
       <textarea id="screenQs" class="qbox" rows="3" placeholder="Why are you interested in this role?&#10;Describe your RevOps experience."></textarea>
       <button class="ghost" onclick="draftAnswers(${d.id})">Draft answers</button>
       <div id="screenOut"></div>
+    </div>
+    <div class="sec"><h4>Follow-up tracking</h4>
+      <div class="note2" style="margin-top:0">Your private log for this role — notes, the next action, and a reminder date. Surfaced on the dashboard when due.</div>
+      <input id="fuNext" class="qbox" type="text" placeholder="Next action — e.g. “Reply to recruiter / send portfolio”" value="${esc(d.followup_next_action||"")}">
+      <input id="fuReminder" class="qbox" type="date" value="${esc(d.followup_reminder_at||"")}">
+      <textarea id="fuNotes" class="qbox" rows="3" placeholder="Notes — interview dates, contacts, what was said…">${esc(d.followup_notes||"")}</textarea>
+      <button class="ghost" onclick="saveFollowup(${d.id})">Save follow-up</button>
+      <span id="fuMsg" class="note2" style="margin-top:0"></span>
     </div>`;
 
   let foot="";
@@ -716,6 +727,18 @@ async function draftAnswers(id){
       ? `<div class="note2">No answers could be safely drafted from your approved profile — answer these yourself.</div>` : "";
     out.innerHTML=blocks+none+skippedHtml(r.skipped);
   } catch(e){ out.innerHTML=`<div class="note2">Error: ${esc(String(e))}</div>`; }
+}
+async function saveFollowup(id){
+  const msg=$("fuMsg");
+  msg.textContent="Saving…";
+  try {
+    const r=await api().save_followup(id, $("fuNotes").value, $("fuNext").value, $("fuReminder").value);
+    if(!r || !r.ok){ msg.textContent="Error: "+((r&&r.error)||"could not save"); return; }
+    msg.textContent = r.reminder_at
+      ? (r.reminder_due ? "✓ Saved — reminder is due" : "✓ Saved — reminder set for "+esc(r.reminder_at))
+      : "✓ Saved";
+    load();  // refresh dashboard counts / due badges
+  } catch(e){ msg.textContent="Error: "+e; }
 }
 async function autoApply(id){
   drawerMsg("Launching a browser to fill the form & attach your documents…");
