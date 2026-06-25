@@ -118,23 +118,12 @@ def _bullets(pdf: Any, items: list[str], *, bold_lead: bool = True) -> None:
         )
 
 
-def render_resume_pdf(document: dict[str, Any], path: str | Path) -> Path:
-    """Render a structured résumé document to an executive single-column PDF.
-
-    ATS-safe by construction — selectable text in reading order, one column, no
-    tables or text boxes. The content comes entirely from `document` (built from
-    the approved master); this function only styles it."""
-    from fpdf import FPDF  # optional dep; imported lazily
-
-    pdf = FPDF(format="Letter", unit="pt")
-    pdf.set_auto_page_break(auto=True, margin=46)
-    pdf.set_margins(54, 46, 54)
-    pdf.add_page()
-
-    # --- Header (centered): name, headline, contact, rule ---
-    pdf.set_font("Helvetica", "B", 22)
+def _letterhead(pdf: Any, document: dict[str, Any], *, name_size: float = 22) -> None:
+    """Centered name / headline / contact + a rule — shared by the résumé and the
+    cover letter so the two artifacts read as a matched set."""
+    pdf.set_font("Helvetica", "B", name_size)
     pdf.set_text_color(*_INK)
-    pdf.cell(0, 26, normalize_text(document.get("name", "")),
+    pdf.cell(0, name_size + 4, normalize_text(document.get("name", "")),
              new_x="LMARGIN", new_y="NEXT", align="C")
     if document.get("headline"):
         pdf.set_font("Helvetica", "B", 10.5)
@@ -152,6 +141,22 @@ def render_resume_pdf(document: dict[str, Any], path: str | Path) -> Path:
     pdf.line(pdf.l_margin, y, pdf.w - pdf.r_margin, y)
     pdf.ln(2)
     pdf.set_text_color(*_INK)
+
+
+def render_resume_pdf(document: dict[str, Any], path: str | Path) -> Path:
+    """Render a structured résumé document to an executive single-column PDF.
+
+    ATS-safe by construction — selectable text in reading order, one column, no
+    tables or text boxes. The content comes entirely from `document` (built from
+    the approved master); this function only styles it."""
+    from fpdf import FPDF  # optional dep; imported lazily
+
+    pdf = FPDF(format="Letter", unit="pt")
+    pdf.set_auto_page_break(auto=True, margin=46)
+    pdf.set_margins(54, 46, 54)
+    pdf.add_page()
+
+    _letterhead(pdf, document)
 
     if document.get("summary"):
         _section_header(pdf, "Executive Summary")
@@ -236,6 +241,44 @@ def render_resume_pdf(document: dict[str, Any], path: str | Path) -> Path:
     return out
 
 
+def render_cover_letter_pdf(
+    letter: str, document: dict[str, Any], path: str | Path
+) -> Path:
+    """Render a cover letter under the same letterhead as the résumé.
+
+    `document` supplies the centered name / headline / contact header (the
+    résumé document is reused); `letter` is the approved letter body, rendered
+    as justified paragraphs. Nothing is added to the letter — only styled."""
+    from fpdf import FPDF  # optional dep; imported lazily
+
+    pdf = FPDF(format="Letter", unit="pt")
+    pdf.set_auto_page_break(auto=True, margin=54)
+    pdf.set_margins(64, 54, 64)
+    pdf.add_page()
+
+    _letterhead(pdf, document, name_size=18)
+
+    pdf.ln(6)
+    pdf.set_font("Helvetica", size=9)
+    pdf.set_text_color(*_MUTED)
+    pdf.cell(0, 13, date.today().strftime("%B %-d, %Y"),
+             new_x="LMARGIN", new_y="NEXT")
+    pdf.ln(4)
+
+    pdf.set_text_color(*_INK)
+    for line in normalize_text(letter).split("\n"):
+        if line.strip() == "":
+            pdf.ln(7)
+        else:
+            pdf.set_font("Helvetica", size=10.5)
+            pdf.multi_cell(0, 15, line, new_x="LMARGIN", new_y="NEXT", align="J")
+
+    out = Path(path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    pdf.output(str(out))
+    return out
+
+
 def export_application_pdfs(
     job: Any,
     resume_text: str,
@@ -246,9 +289,10 @@ def export_application_pdfs(
 ) -> dict[str, Any]:
     """Write a résumé PDF and a cover-letter PDF for one role.
 
-    When `resume_document` (a structured résumé) is given, the résumé is rendered
-    with the polished single-column layout; otherwise it falls back to the plain
-    text renderer for backward compatibility."""
+    When `resume_document` (a structured résumé) is given, the résumé uses the
+    executive single-column layout and the cover letter is rendered under the
+    same letterhead (a matched set); otherwise both fall back to the plain text
+    renderer for backward compatibility."""
     folder = Path(output_root) / "pdf" / date.today().isoformat()
     base = f"{slugify(job.company)}_{slugify(job.title)}"
     resume_path = (
@@ -256,10 +300,16 @@ def export_application_pdfs(
         if resume_document is not None
         else render_text_pdf(resume_text, folder / f"{base}_resume.pdf")
     )
-    cover_path = render_text_pdf(
-        cover_letter,
-        folder / f"{base}_cover.pdf",
-        title=f"{job.company} — {job.title}",
+    cover_path = (
+        render_cover_letter_pdf(
+            cover_letter, resume_document, folder / f"{base}_cover.pdf"
+        )
+        if resume_document is not None
+        else render_text_pdf(
+            cover_letter,
+            folder / f"{base}_cover.pdf",
+            title=f"{job.company} — {job.title}",
+        )
     )
     return {
         "job_id": getattr(job, "id", None),
