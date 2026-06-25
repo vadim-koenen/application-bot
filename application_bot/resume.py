@@ -141,6 +141,52 @@ def _ordered_competencies(job: Job, master: dict[str, Any]) -> list[str]:
     return relevant + other
 
 
+def build_resume_document(
+    job: Job,
+    master: dict[str, Any],
+    config: dict[str, Any],
+) -> dict[str, Any]:
+    """Structured, role-tailored résumé for a formatted (non-flat) renderer.
+
+    Same approved content and ordering as render_ats_resume_text — header,
+    role-relevant keyword line, summary, competencies, selected impact,
+    experience, education, certifications — but as typed sections a PDF layout
+    can style with real hierarchy. Introduces no new content: everything is read
+    from the approved master and the same keyword/competency helpers."""
+    identity = master["identity"]
+    contact = master["contact"]
+    align = keyword_alignment(job, master, config)
+    contact_bits = [
+        contact.get("location"), contact.get("email"),
+        contact.get("website"), contact.get("linkedin"),
+    ]
+    experience = [
+        {
+            "company": str(role.get("company", "")),
+            "title": str(role.get("title", "")),
+            "dates": str(role.get("dates", "")),
+            "location": str(role.get("location", "")),
+            "bullets": [str(b) for b in role.get("bullets", [])],
+        }
+        for role in master.get("experience", [])
+    ]
+    return {
+        "name": identity["name"],
+        "headline": identity["headline"],
+        "contact_bits": [b for b in contact_bits if b],
+        "relevant_label": (
+            f"Relevant to {job.company} — {job.title}" if align["matched"] else ""
+        ),
+        "relevant": list(align["matched"][:10]),
+        "summary": " ".join(str(master.get("summary", "")).split()),
+        "competencies": _ordered_competencies(job, master),
+        "impact": [str(x) for x in master.get("selected_impact", [])],
+        "experience": experience,
+        "education": [str(x) for x in master.get("education", [])],
+        "certifications": [str(x) for x in master.get("certifications", [])],
+    }
+
+
 def render_ats_resume_text(
     job: Job,
     master: dict[str, Any],
