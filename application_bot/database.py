@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from datetime import date
 import json
 from pathlib import Path
 import sqlite3
@@ -175,6 +176,15 @@ class Database:
             )
             self._ensure_column(
                 connection, "jobs", "recommended_next_action", "TEXT"
+            )
+            self._ensure_column(
+                connection, "jobs", "followup_notes", "TEXT NOT NULL DEFAULT ''"
+            )
+            self._ensure_column(
+                connection, "jobs", "followup_next_action", "TEXT NOT NULL DEFAULT ''"
+            )
+            self._ensure_column(
+                connection, "jobs", "followup_reminder_at", "TEXT"
             )
             connection.execute(
                 """
@@ -742,6 +752,61 @@ class Database:
                 (job_id, json.dumps({"notes": notes}), utc_now()),
             )
 
+    def set_followup(
+        self,
+        job_id: int,
+        *,
+        notes: str = "",
+        next_action: str = "",
+        reminder_at: str | None = None,
+    ) -> None:
+        """Save the operator's follow-up tracking for a role (M50 pipeline CRM).
+
+        notes (free-text log), next_action (the next thing to do), and
+        reminder_at (an ISO date YYYY-MM-DD, or empty to clear). Records a
+        FOLLOWUP_UPDATED event. Raises ValueError on an unknown job or a
+        malformed reminder date."""
+        reminder = (reminder_at or "").strip() or None
+        if reminder is not None:
+            try:
+                date.fromisoformat(reminder)
+            except ValueError as exc:
+                raise ValueError(
+                    "reminder_at must be an ISO date (YYYY-MM-DD)"
+                ) from exc
+        with self.connect() as connection:
+            exists = connection.execute(
+                "SELECT id FROM jobs WHERE id = ?", (job_id,)
+            ).fetchone()
+            if not exists:
+                raise ValueError(f"Job {job_id} does not exist")
+            connection.execute(
+                """
+                UPDATE jobs
+                SET followup_notes = ?, followup_next_action = ?,
+                    followup_reminder_at = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                (notes.strip(), next_action.strip(), reminder, utc_now(), job_id),
+            )
+            connection.execute(
+                """
+                INSERT INTO events(job_id, event_type, details_json, created_at)
+                VALUES (?, 'FOLLOWUP_UPDATED', ?, ?)
+                """,
+                (
+                    job_id,
+                    json.dumps(
+                        {
+                            "next_action": next_action.strip(),
+                            "reminder_at": reminder,
+                            "has_notes": bool(notes.strip()),
+                        }
+                    ),
+                    utc_now(),
+                ),
+            )
+
     def report(self) -> dict[str, Any]:
         with self.connect() as connection:
             total = connection.execute("SELECT COUNT(*) AS count FROM jobs").fetchone()
@@ -1051,6 +1116,9 @@ class Database:
                 "claim_gaps_json",
                 "packet_reason_codes_json",
                 "recommended_next_action",
+                "followup_notes",
+                "followup_next_action",
+                "followup_reminder_at",
             )
         }
         return Job(**fields)

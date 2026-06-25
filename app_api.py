@@ -18,6 +18,7 @@ import json
 import os
 import shutil
 import subprocess
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -120,6 +121,15 @@ class JobAppAPI:
             return "Cold"
         return None
 
+    @staticmethod
+    def _reminder_due(reminder_at: str | None) -> bool:
+        """True if a follow-up reminder is set and falls on/before today.
+
+        Reminder dates are ISO (YYYY-MM-DD), so a lexical <= today comparison is
+        also chronological — no parsing needed."""
+        reminder = (reminder_at or "").strip()
+        return bool(reminder) and reminder <= date.today().isoformat()
+
     def _row(self, job: Any) -> dict[str, Any]:
         return {
             "id": job.id,
@@ -136,6 +146,8 @@ class JobAppAPI:
             "packet_status": job.packet_status,
             "status": job.status,
             "is_form": str(job.apply_url or "").lower().startswith("http"),
+            "reminder_at": job.followup_reminder_at or "",
+            "reminder_due": self._reminder_due(job.followup_reminder_at),
         }
 
     # --- methods called by the UI -------------------------------------------
@@ -516,10 +528,13 @@ class JobAppAPI:
         by_source: dict[str, int] = {}
         by_grade = {"Hot": 0, "Warm": 0, "Cold": 0}
         outstanding_scores: list[int] = []
+        followups_due = 0
         for job in jobs:
             applied = str(job.status) == "APPLIED"
             responded = str(job.status) == "RESPONDED"
             ready = str(job.packet_status) == "PACKET_READY"
+            if self._reminder_due(job.followup_reminder_at):
+                followups_due += 1
             if applied:
                 pipeline["applied"] += 1
             if responded:
@@ -546,6 +561,7 @@ class JobAppAPI:
             "avg_score": avg_score,
             "total_scored": len(jobs),
             "window_hours": self.window_hours,
+            "followups_due": followups_due,
         }
 
     def job_detail(self, job_id: int) -> dict[str, Any]:
@@ -574,6 +590,38 @@ class JobAppAPI:
                 "risk_flags": list(details.get("risk_flags", [])),
                 "dimensions": details.get("dimensions", {}),
                 "recommended_next_action": job.recommended_next_action or "",
+                "followup_notes": job.followup_notes or "",
+                "followup_next_action": job.followup_next_action or "",
+                "followup_reminder_at": job.followup_reminder_at or "",
             }
         )
         return detail
+
+    def save_followup(
+        self,
+        job_id: int,
+        notes: str = "",
+        next_action: str = "",
+        reminder_at: str = "",
+    ) -> dict[str, Any]:
+        """Persist follow-up tracking for a role (notes / next action / reminder).
+
+        Turns the post-application stages into a real pipeline CRM. `reminder_at`
+        is an ISO date (YYYY-MM-DD) or empty to clear; an invalid date is
+        rejected. Nothing here is outward-facing — it's the operator's own log.
+        """
+        database = self._db()
+        try:
+            database.set_followup(
+                int(job_id),
+                notes=notes or "",
+                next_action=next_action or "",
+                reminder_at=reminder_at or "",
+            )
+        except ValueError as exc:
+            return {"ok": False, "error": str(exc)}
+        return {
+            "ok": True,
+            "reminder_at": (reminder_at or "").strip(),
+            "reminder_due": self._reminder_due(reminder_at),
+        }

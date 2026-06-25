@@ -105,6 +105,10 @@ class Job:
     claim_gaps_json: str = "[]"
     packet_reason_codes_json: str = "[]"
     recommended_next_action: str | None = None
+    # M50 follow-up / interview tracking — operator-maintained pipeline CRM fields.
+    followup_notes: str = ""
+    followup_next_action: str = ""
+    followup_reminder_at: str | None = None
 
     def __post_init__(self) -> None:
         if not self.content_hash:
