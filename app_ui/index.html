@@ -444,6 +444,17 @@ async function renderSettings(){
         confirms the count. Attach the résumé from Downloads, tick the box, submit.
       </div>
     </div>
+    <div class="card"><h3>Cover letters</h3>
+      <div id="clStatus" class="note2" style="margin-top:0">Checking…</div>
+      <div class="settxt" style="margin-top:10px">
+        Letters are drafted by Claude when an API key is configured, with a
+        fabrication guard that rejects any invented metric, degree, employer, or
+        comp/visa mention (it falls back to the offline template otherwise).<br>
+        <b>To enable Claude drafting:</b> <code>pip install anthropic</code> and set
+        <code>ANTHROPIC_API_KEY</code> in your <code>.env</code> (optionally
+        <code>COVER_LETTER_MODEL</code>; defaults to claude-opus-4-8). Restart the app.
+      </div>
+    </div>
     <div class="card"><h3>Discovery</h3>
       <div class="kv"><span class="kk">Registry</span>${esc(summary.registry||"")}</div>
       <div class="kv"><span class="kk">Freshness</span>${summary.window_hours}h window</div>
@@ -459,6 +470,17 @@ async function renderSettings(){
       The app never auto-submits applications and never fabricates claims — résumé
       content comes only from your approved master profile.</p>
     </div>`;
+  try {
+    const cl = await api().cover_letter_status();
+    const el = $("clStatus");
+    if(cl && cl.enabled){
+      el.innerHTML = `<b style="color:var(--good)">✓ Claude drafting active</b> · model ${esc(cl.model)}`;
+    } else {
+      const missing = cl && !cl.has_sdk ? "anthropic SDK not installed"
+        : (cl && !cl.has_key ? "no ANTHROPIC_API_KEY set" : "unavailable");
+      el.innerHTML = `Using the offline template (${missing}).`;
+    }
+  } catch(e){ $("clStatus").textContent = "Status unavailable."; }
   try {
     const r = await api().apply_autofill_bookmarklet();
     if(r && r.ok){
@@ -606,6 +628,8 @@ async function openDrawer(id){
   let foot="";
   foot += `<button class="apply" onclick="startApplication(${d.id})">`
         + `${d.is_form ? "Start application →" : "Prepare application"}</button>`;
+  if(d.is_form)
+    foot += `<button class="ghost" onclick="autoApply(${d.id})">Auto-fill in browser (beta)</button>`;
   foot += `<button class="ghost" onclick="openPdf(${d.id},'resume')">Résumé PDF</button>`;
   foot += `<button class="ghost" onclick="openPdf(${d.id},'cover')">Cover PDF</button>`;
   if(d.status!=="APPLIED" && d.status!=="RESPONDED")
@@ -659,6 +683,16 @@ function renderApplyHelper(r){
   const body=$("dBody");
   const prev=body.querySelector(".applyhelp"); if(prev) prev.remove();
   body.insertAdjacentHTML("afterbegin", html); body.scrollTop=0;
+}
+async function autoApply(id){
+  drawerMsg("Launching a browser to fill the form & attach your documents…");
+  try {
+    const r = await api().auto_apply(id);
+    if(!r || !r.ok){ drawerMsg("Auto-fill: "+((r&&r.error)||"failed"), true); return; }
+    const up = (r.uploaded||[]).join(" + ") || "no files";
+    drawerMsg(`✓ Filled ${(r.filled||[]).length} fields, attached ${up}. `
+      + "Review, tick the box, and submit — the app never submits.");
+  } catch(e){ drawerMsg("Auto-fill error: "+e, true); }
 }
 async function markApplied(id){
   await api().mark_applied(id,""); closeDrawer();

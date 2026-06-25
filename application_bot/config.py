@@ -94,6 +94,8 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "solutions architect",
         "executive assistant",
         "administrative assistant",
+        "business partner",
+        "chief of staff",
     ],
     "role_mismatch_penalty": -30,
     "years_requirement_scoring": {

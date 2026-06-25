@@ -155,7 +155,7 @@ def test_new_tab_shows_only_fresh_fits(tmp_path):
     assert "Software Security Engineer" not in titles
 
 
-def test_open_artifact_generates_and_opens_pdf(tmp_path, monkeypatch):
+def test_open_artifact_downloads_pdf_without_opening(tmp_path, monkeypatch):
     pytest.importorskip("fpdf")
     import app_api as app_api_module
 
@@ -170,8 +170,8 @@ def test_open_artifact_generates_and_opens_pdf(tmp_path, monkeypatch):
     cover = api.open_artifact(job_id, "cover")
     assert resume["ok"] and resume["path"].endswith("_resume.pdf")
     assert cover["ok"] and cover["path"].endswith("_cover.pdf")
-    # The PDFs were downloaded to the Downloads folder, then opened.
+    # The PDFs land in the Downloads folder…
     assert (api.downloads_dir / Path(resume["path"]).name).exists()
     assert (api.downloads_dir / Path(cover["path"]).name).exists()
-    assert opened[0] == ["open", resume["path"]]
-    assert opened[1] == ["open", cover["path"]]
+    # …and are NOT opened in a viewer (no Preview popup — just the download).
+    assert opened == []
