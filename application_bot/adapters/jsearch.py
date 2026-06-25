@@ -9,6 +9,11 @@ from application_bot.adapters.base import SourceAdapter
 from application_bot.adapters.util import infer_remote_type
 from application_bot.models import Job
 
+# Canonical JSearch (OpenWeb Ninja) search endpoint. Overridable via env/config
+# (RAPIDAPI_JSEARCH_URL, or RAPIDAPI_JSEARCH_HOST + RAPIDAPI_JSEARCH_PATH) so a
+# different RapidAPI jobs API can be pointed in without code changes.
+DEFAULT_SEARCH_URL = "https://jsearch.p.rapidapi.com/search"
+
 
 def rapidapi_transport(api_key: str, host: str = "jsearch.p.rapidapi.com") -> Callable[[str], Any]:
     """A transport that adds the RapidAPI auth headers JSearch requires."""
@@ -39,6 +44,10 @@ class JSearchAdapter(SourceAdapter):
     source_name = "jsearch"
     submission_mode = "AUTO_PACKET_ONLY"
 
+    def __init__(self, transport: Any = None, search_url: str = DEFAULT_SEARCH_URL) -> None:
+        super().__init__(transport=transport)
+        self.search_url = search_url or DEFAULT_SEARCH_URL
+
     def discover_jobs(self, **kwargs: Any) -> list[Job]:
         params = {
             "query": str(kwargs.get("what") or ""),
@@ -48,7 +57,8 @@ class JSearchAdapter(SourceAdapter):
         }
         if kwargs.get("remote_only"):
             params["remote_jobs_only"] = "true"
-        url = "https://jsearch.p.rapidapi.com/search?" + urlencode(params)
+        sep = "&" if "?" in self.search_url else "?"
+        url = self.search_url + sep + urlencode(params)
         payload = self.transport(url)
         return [self.normalize_job(row) for row in payload.get("data", [])]
 
