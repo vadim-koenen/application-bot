@@ -61,36 +61,65 @@ _MUTED = (90, 99, 114)
 _ACCENT = (31, 58, 95)
 
 
+def _content_width(pdf: Any) -> float:
+    return pdf.w - pdf.l_margin - pdf.r_margin
+
+
 def _section_header(pdf: Any, label: str) -> None:
-    pdf.ln(7)
+    pdf.ln(9)
     pdf.set_font("Helvetica", "B", 10.5)
     pdf.set_text_color(*_ACCENT)
-    # multi_cell so an unusually long label (e.g. "Relevant to <company> — <title>")
-    # wraps instead of overrunning the right margin.
-    pdf.multi_cell(0, 13, normalize_text(label.upper()), new_x="LMARGIN", new_y="NEXT")
-    # Hairline rule under the header, full content width.
+    pdf.cell(0, 13, normalize_text(label.upper()), new_x="LMARGIN", new_y="NEXT")
+    # Accent rule under the header, full content width.
     y = pdf.get_y() + 1
     pdf.set_draw_color(*_ACCENT)
-    pdf.set_line_width(0.6)
+    pdf.set_line_width(0.7)
     pdf.line(pdf.l_margin, y, pdf.w - pdf.r_margin, y)
     pdf.ln(5)
     pdf.set_text_color(*_INK)
 
 
-def _bullets(pdf: Any, items: list[str]) -> None:
+def _bold_lead_markdown(text: str) -> str:
+    """Bold the lead-in phrase up to the first colon, executive-bullet style.
+
+    "Pioneered agentic AI: …" -> "**Pioneered agentic AI:** …". Bullets without
+    a colon are returned unchanged (no forced bold)."""
+    text = normalize_text(text)
+    head, sep, tail = text.partition(": ")
+    return f"**{head}:** {tail}" if sep else text
+
+
+def _ensure_room(pdf: Any, needed: float) -> None:
+    """Start a new page if fewer than `needed` points remain, so a marker we
+    draw manually can't be orphaned at the page bottom while its text flows on."""
+    if pdf.get_y() + needed > pdf.h - pdf.b_margin:
+        pdf.add_page()
+
+
+def _bullets(pdf: Any, items: list[str], *, bold_lead: bool = True) -> None:
+    dot_r = 1.3
     indent = 12
-    width = pdf.w - pdf.l_margin - pdf.r_margin - indent
+    width = _content_width(pdf) - indent
     for item in items:
+        # Keep the bullet dot with its first line across a page break.
+        _ensure_room(pdf, 14)
         y = pdf.get_y()
-        pdf.set_font("Helvetica", size=9.5)
-        pdf.set_xy(pdf.l_margin, y)
-        pdf.cell(indent, 13, normalize_text("-"))
+        # A small filled accent dot as the bullet marker (latin-1 core fonts
+        # can't encode a real bullet glyph, so we draw one).
+        pdf.set_fill_color(*_ACCENT)
+        pdf.ellipse(pdf.l_margin + 2, y + 4.5, dot_r * 2, dot_r * 2, style="F")
         pdf.set_xy(pdf.l_margin + indent, y)
-        pdf.multi_cell(width, 13, normalize_text(item), new_x="LMARGIN", new_y="NEXT")
+        pdf.set_font("Helvetica", size=9.5)
+        pdf.set_text_color(*_INK)
+        pdf.multi_cell(
+            width, 13,
+            _bold_lead_markdown(item) if bold_lead else normalize_text(item),
+            new_x="LMARGIN", new_y="NEXT", markdown=bold_lead,
+        )
 
 
 def render_resume_pdf(document: dict[str, Any], path: str | Path) -> Path:
-    """Render a structured résumé document to a polished single-column PDF.
+    """Render a structured résumé document to an executive single-column PDF.
 
     ATS-safe by construction — selectable text in reading order, one column, no
     tables or text boxes. The content comes entirely from `document` (built from
@@ -98,25 +127,25 @@ def render_resume_pdf(document: dict[str, Any], path: str | Path) -> Path:
     from fpdf import FPDF  # optional dep; imported lazily
 
     pdf = FPDF(format="Letter", unit="pt")
-    pdf.set_auto_page_break(auto=True, margin=48)
-    pdf.set_margins(54, 50, 54)
+    pdf.set_auto_page_break(auto=True, margin=46)
+    pdf.set_margins(54, 46, 54)
     pdf.add_page()
 
-    # Header: name, headline, contact line, then a rule.
-    pdf.set_font("Helvetica", "B", 20)
+    # --- Header (centered): name, headline, contact, rule ---
+    pdf.set_font("Helvetica", "B", 22)
     pdf.set_text_color(*_INK)
-    pdf.cell(0, 24, normalize_text(document.get("name", "")),
-             new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 26, normalize_text(document.get("name", "")),
+             new_x="LMARGIN", new_y="NEXT", align="C")
     if document.get("headline"):
-        pdf.set_font("Helvetica", size=11)
+        pdf.set_font("Helvetica", "B", 10.5)
         pdf.set_text_color(*_ACCENT)
-        pdf.cell(0, 15, normalize_text(document["headline"]),
-                 new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 14, normalize_text(document["headline"]),
+                       new_x="LMARGIN", new_y="NEXT", align="C")
     if document.get("contact_bits"):
         pdf.set_font("Helvetica", size=8.5)
         pdf.set_text_color(*_MUTED)
-        pdf.cell(0, 13, normalize_text("  |  ".join(document["contact_bits"])),
-                 new_x="LMARGIN", new_y="NEXT")
+        pdf.multi_cell(0, 12, normalize_text("  |  ".join(document["contact_bits"])),
+                       new_x="LMARGIN", new_y="NEXT", align="C")
     y = pdf.get_y() + 3
     pdf.set_draw_color(*_INK)
     pdf.set_line_width(0.8)
@@ -124,55 +153,82 @@ def render_resume_pdf(document: dict[str, Any], path: str | Path) -> Path:
     pdf.ln(2)
     pdf.set_text_color(*_INK)
 
-    if document.get("relevant"):
-        _section_header(pdf, document.get("relevant_label") or "Relevant skills")
-        pdf.set_font("Helvetica", size=9.5)
-        pdf.multi_cell(0, 13, normalize_text("  •  ".join(document["relevant"])),
-                       new_x="LMARGIN", new_y="NEXT")
-
     if document.get("summary"):
-        _section_header(pdf, "Summary")
+        _section_header(pdf, "Executive Summary")
         pdf.set_font("Helvetica", size=9.5)
         pdf.multi_cell(0, 13.5, normalize_text(document["summary"]),
                        new_x="LMARGIN", new_y="NEXT", align="J")
 
-    if document.get("competencies"):
-        _section_header(pdf, "Core competencies")
+    # --- Selected impact: inline, metric figure bolded, centered ---
+    if document.get("impact"):
+        _section_header(pdf, "Selected Impact")
         pdf.set_font("Helvetica", size=9.5)
-        pdf.multi_cell(0, 13, normalize_text("  •  ".join(document["competencies"])),
+        parts = []
+        for item in document["impact"]:
+            metric, sep, rest = normalize_text(item).partition(" ")
+            parts.append(f"**{metric}** {rest}" if sep else f"**{metric}**")
+        pdf.multi_cell(0, 14, "    ·    ".join(parts),
+                       new_x="LMARGIN", new_y="NEXT", align="C", markdown=True)
+
+    # --- Core competencies: categorized (Platforms: …), or a flat fallback ---
+    if document.get("skill_categories"):
+        _section_header(pdf, "Core Competencies")
+        for cat in document["skill_categories"]:
+            line = f"**{cat['label']}:** {', '.join(cat['items'])}"
+            pdf.set_font("Helvetica", size=9.5)
+            pdf.set_text_color(*_INK)
+            pdf.multi_cell(0, 13, normalize_text(line),
+                           new_x="LMARGIN", new_y="NEXT", markdown=True)
+    elif document.get("competencies"):
+        _section_header(pdf, "Core Competencies")
+        pdf.set_font("Helvetica", size=9.5)
+        pdf.multi_cell(0, 13, normalize_text(", ".join(document["competencies"])),
                        new_x="LMARGIN", new_y="NEXT")
 
-    if document.get("impact"):
-        _section_header(pdf, "Selected impact")
-        _bullets(pdf, document["impact"])
-
+    # --- Professional experience ---
     if document.get("experience"):
-        _section_header(pdf, "Professional experience")
+        _section_header(pdf, "Professional Experience")
+        cw = _content_width(pdf)
         for role in document["experience"]:
-            pdf.ln(3)
+            pdf.ln(4)
+            # Keep a role's header (company / title) with its first bullet.
+            _ensure_room(pdf, 52)
+            # Company (bold, left) + dates (bold, right) on one line.
+            y = pdf.get_y()
+            pdf.set_text_color(*_INK)
             pdf.set_font("Helvetica", "B", 10.5)
-            pdf.set_text_color(*_INK)
-            pdf.multi_cell(0, 13, normalize_text(role.get("title", "")),
+            pdf.set_xy(pdf.l_margin, y)
+            pdf.cell(cw * 0.66, 13, normalize_text(role.get("company", "")), align="L")
+            pdf.set_font("Helvetica", "B", 9.5)
+            pdf.cell(cw * 0.34, 13, normalize_text(role.get("dates", "")),
+                     align="R", new_x="LMARGIN", new_y="NEXT")
+            # Role title in accent, then optional location.
+            pdf.set_font("Helvetica", "B", 9.5)
+            pdf.set_text_color(*_ACCENT)
+            pdf.multi_cell(0, 12.5, normalize_text(role.get("title", "")),
                            new_x="LMARGIN", new_y="NEXT")
-            meta = "  ·  ".join(
-                p for p in (role.get("company"), role.get("location"), role.get("dates")) if p
-            )
-            if meta:
-                pdf.set_font("Helvetica", "I", 9)
-                pdf.set_text_color(*_ACCENT)
-                pdf.cell(0, 12, normalize_text(meta), new_x="LMARGIN", new_y="NEXT")
+            if role.get("location"):
+                pdf.set_font("Helvetica", "I", 8.5)
+                pdf.set_text_color(*_MUTED)
+                pdf.cell(0, 11, normalize_text(role["location"]),
+                         new_x="LMARGIN", new_y="NEXT")
             pdf.set_text_color(*_INK)
+            pdf.ln(1)
             _bullets(pdf, role.get("bullets", []))
 
-    if document.get("education"):
-        _section_header(pdf, "Education")
-        _bullets(pdf, document["education"])
-
-    if document.get("certifications"):
-        _section_header(pdf, "Certifications")
-        pdf.set_font("Helvetica", size=9.5)
-        pdf.multi_cell(0, 13, normalize_text("  •  ".join(document["certifications"])),
-                       new_x="LMARGIN", new_y="NEXT")
+    # --- Education + certifications (combined) ---
+    if document.get("education") or document.get("certifications"):
+        _section_header(pdf, "Education & Certifications")
+        _bullets(pdf, document.get("education", []), bold_lead=False)
+        if document.get("certifications"):
+            pdf.ln(2)
+            pdf.set_font("Helvetica", size=9.5)
+            pdf.set_text_color(*_INK)
+            pdf.multi_cell(
+                0, 13,
+                normalize_text("**Certifications:** " + "  |  ".join(document["certifications"])),
+                new_x="LMARGIN", new_y="NEXT", markdown=True,
+            )
 
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
