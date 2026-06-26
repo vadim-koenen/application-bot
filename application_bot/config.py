@@ -136,6 +136,9 @@ DEFAULT_CONFIG: dict[str, Any] = {
             "brazil", "argentina", "israel", "tel aviv", "philippines", "manila",
             "china", "shanghai", "shenzhen", "hong kong", "united arab emirates",
             "dubai", "south africa", "nigeria", "kenya",
+            # Regions / continents — "Remote - Europe / EMEA / APAC" is not US.
+            "europe", "emea", "apac", "asia", "latam", "latin america",
+            "middle east",
         ],
     },
     "salary_minimums": {
