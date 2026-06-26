@@ -139,8 +139,16 @@ def _call_claude(system: str, user: str, model: str) -> str | None:
         import anthropic
     except ImportError:
         return None
+    # Bound the call so a slow/hung request can't stall the caller — the SDK's
+    # default timeout is 10 minutes, which would make "Start application" appear
+    # to hang and never produce the downloaded PDFs. On timeout we fall back to
+    # the deterministic template. Override with COVER_LETTER_TIMEOUT (seconds).
     try:
-        client = anthropic.Anthropic()
+        timeout = float(os.environ.get("COVER_LETTER_TIMEOUT") or 45)
+    except ValueError:
+        timeout = 45.0
+    try:
+        client = anthropic.Anthropic(timeout=timeout, max_retries=1)
         response = client.messages.create(
             model=model,
             max_tokens=1024,
@@ -148,7 +156,7 @@ def _call_claude(system: str, user: str, model: str) -> str | None:
             messages=[{"role": "user", "content": user}],
         )
         return "".join(b.text for b in response.content if b.type == "text").strip()
-    except Exception:  # noqa: BLE001 - any SDK/network error → fall back to template
+    except Exception:  # noqa: BLE001 - any SDK/network/timeout error → template
         return None
 
 
