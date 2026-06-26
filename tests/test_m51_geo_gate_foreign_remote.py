@@ -53,28 +53,24 @@ def test_foreign_remote_has_explanatory_flag():
     assert any("Off-geography" in f for f in flags)
 
 
-# --- location-agnostic US remote still passes --------------------------------
+# --- any US remote passes, including roles that list a US city ---------------
 
-def test_agnostic_us_remote_passes():
-    # Leads with "Remote" (incl. descriptive parentheticals) or is a bare US
-    # descriptor → workable from DFW.
+def test_us_remote_passes():
     for loc in (
         "Remote - United States", "Remote - US", "Remote U.S.",
-        "Remote - United States (must reside in eligible states incl. TX)",
-        "Remote - United States (fixed term 12-18 months)", "US", "",
+        "Remote - United States (must reside in eligible states incl. TX)", "",
     ):
         assert _result(loc, "remote").verdict != FitVerdict.NOT_WORTH_TIME, loc
 
 
-def test_city_pinned_remote_is_dropped():
-    # M55: a "remote" role pinned to a specific non-DFW city is off-geography —
-    # even with a trailing US/USA marker — since the operator can't take it.
+def test_us_city_remote_is_kept():
+    # M56: if the posting is remote it's workable from DFW even when it lists a
+    # US city — the role itself is remote, so keep it.
     for loc in (
         "New York City, New York", "San Mateo, San Mateo County",
         "Seattle, Washington", "San Francisco, CA", "Bellevue, WA, USA",
-        "San Francisco, California, United States",
     ):
-        assert _result(loc, "remote").verdict == FitVerdict.NOT_WORTH_TIME, loc
+        assert _result(loc, "remote").verdict != FitVerdict.NOT_WORTH_TIME, loc
 
 
 # --- unchanged behaviour from M31 (regression guard) -------------------------

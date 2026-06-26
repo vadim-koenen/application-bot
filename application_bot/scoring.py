@@ -16,13 +16,6 @@ def _contains_any(text: str, values: list[str]) -> list[str]:
 # when Texas is also present in the location string.
 _AMBIGUOUS_DFW = {"arlington", "allen", "denton", "addison", "richardson"}
 
-# Bare US-wide / blank location descriptors that mean "no specific place" — a
-# remote role with one of these is workable from anywhere, including DFW.
-_AGNOSTIC_US_LOCATIONS = {
-    "", "us", "u.s.", "u.s", "usa", "u.s.a.", "united states",
-    "united states of america", "north america", "nationwide", "anywhere",
-}
-
 
 def _salary_minimum(title: str, config: dict[str, Any]) -> int:
     salaries = config.get("salary_minimums", {})
@@ -183,26 +176,22 @@ def score_job(job: Job, config: dict[str, Any]) -> ScoreResult:
     is_dfw = bool([m for m in matched_dfw if m not in _AMBIGUOUS_DFW]) or (
         bool(matched_dfw) and has_tx
     )
-    # A remote role is workable from DFW only if its location is *agnostic* — it
-    # leads with "Remote" (e.g. "Remote - United States (must reside incl. TX)")
-    # or is a bare US/blank descriptor — and is not foreign. A remote role PINNED
-    # to a specific place — a non-DFW US city (New York, San Mateo, "Bellevue,
-    # WA, USA") or a foreign country — is off-geography, like an onsite role
-    # elsewhere. (Operator is DFW-based and not relocating; curating off-geo
-    # roles wastes tokens.)
+    # If the posting is remote it's workable from DFW, even when it lists a US
+    # city (the role itself is remote) — keep it. The only remote roles we drop
+    # are ones tied to a FOREIGN country/region (can't work from abroad). Onsite
+    # or hybrid roles outside DFW are off-geography. (Operator is DFW-based and
+    # not relocating; curating off-geo roles wastes tokens.)
     loc_str = job.location.strip().lower()
     is_foreign = bool(_contains_any(loc_str, preferences.get("non_us", [])))
-    location_agnostic = (
-        loc_str.startswith("remote") or loc_str in _AGNOSTIC_US_LOCATIONS
-    ) and not is_foreign
-    remote_workable = is_remote and location_agnostic
+    remote_workable = is_remote and not is_foreign
     require_geo = bool(config.get("require_remote_or_dfw", True))
     confirmed_offsite = (is_onsite or is_hybrid) and not is_dfw and not is_remote
-    pinned_remote = is_remote and not remote_workable and not is_dfw
-    off_geography = confirmed_offsite or pinned_remote
+    off_geography = confirmed_offsite or (is_remote and is_foreign and not is_dfw)
     location_ok = not off_geography
     if require_geo and not location_ok:
-        risk_flags.append("Off-geography: not DFW or location-agnostic US-remote.")
+        risk_flags.append(
+            "Off-geography: onsite/hybrid outside DFW, or foreign-only remote."
+        )
     if is_dfw and is_remote:
         dimensions["location"] = 12
         reasons.append("DFW-based and remote-friendly.")
