@@ -50,32 +50,31 @@ def test_foreign_remote_is_excluded():
 
 def test_foreign_remote_has_explanatory_flag():
     flags = _result("Remote - Canada", "remote").risk_flags
-    assert any("outside the US" in f for f in flags)
+    assert any("Off-geography" in f for f in flags)
 
 
-# --- US-remote and US-ambiguous remote still pass ----------------------------
+# --- location-agnostic US remote still passes --------------------------------
 
-def test_us_remote_passes():
+def test_agnostic_us_remote_passes():
+    # Leads with "Remote" (incl. descriptive parentheticals) or is a bare US
+    # descriptor → workable from DFW.
     for loc in (
         "Remote - United States", "Remote - US", "Remote U.S.",
-        "San Francisco, California, United States",
-        "Salt Lake City, Utah, United States",
+        "Remote - United States (must reside in eligible states incl. TX)",
+        "Remote - United States (fixed term 12-18 months)", "US", "",
     ):
         assert _result(loc, "remote").verdict != FitVerdict.NOT_WORTH_TIME, loc
 
 
-def test_us_ambiguous_remote_is_kept():
-    # A US city with no explicit "United States" marker and no foreign marker is
-    # still treated as US-remote (don't second-guess a 'remote' classification).
-    for loc in ("San Francisco", "Seattle", "New York City"):
-        assert _result(loc, "remote").verdict != FitVerdict.NOT_WORTH_TIME, loc
-
-
-def test_explicit_us_overrides_a_foreign_mention():
-    # "... • United States" with a remote classification stays eligible even if a
-    # foreign city is also listed.
-    loc = "San Francisco, CA • Toronto, Canada • United States"
-    assert _result(loc, "remote").verdict != FitVerdict.NOT_WORTH_TIME
+def test_city_pinned_remote_is_dropped():
+    # M55: a "remote" role pinned to a specific non-DFW city is off-geography —
+    # even with a trailing US/USA marker — since the operator can't take it.
+    for loc in (
+        "New York City, New York", "San Mateo, San Mateo County",
+        "Seattle, Washington", "San Francisco, CA", "Bellevue, WA, USA",
+        "San Francisco, California, United States",
+    ):
+        assert _result(loc, "remote").verdict == FitVerdict.NOT_WORTH_TIME, loc
 
 
 # --- unchanged behaviour from M31 (regression guard) -------------------------
@@ -90,6 +89,15 @@ def test_dfw_and_unknown_still_pass():
 def test_onsite_elsewhere_still_excluded():
     assert _result("New York, NY", "onsite").verdict == FitVerdict.NOT_WORTH_TIME
     assert _result("Austin, TX", "hybrid").verdict == FitVerdict.NOT_WORTH_TIME
+
+
+def test_dfw_suburb_name_collision_is_not_dfw():
+    # "Arlington" alone (Arlington County, VA) must NOT count as DFW; the real
+    # DFW Arlington carries a Texas marker.
+    assert _result("Fort Myer, Arlington County", "onsite").verdict == (
+        FitVerdict.NOT_WORTH_TIME
+    )
+    assert _result("Arlington, TX", "onsite").verdict != FitVerdict.NOT_WORTH_TIME
 
 
 # --- rescore_all maintenance -------------------------------------------------

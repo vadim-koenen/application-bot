@@ -89,17 +89,19 @@ def test_united_states_onsite_does_not_receive_remote_bonus():
     result = score_job(
         make_job(location="United States", remote_type="onsite"), DEFAULT_CONFIG
     )
+    # Onsite with no DFW signal is off-geography (no remote bonus).
     assert result.dimensions["location"] == -12
-    assert "Onsite-only location." in result.risk_flags
+    assert any("Off-geography" in f for f in result.risk_flags)
 
 
-def test_remote_us_beats_remote_with_unclear_us_eligibility():
+def test_remote_us_beats_remote_pinned_elsewhere():
     remote_us = score_job(make_job(), DEFAULT_CONFIG)
+    # M55: a remote role pinned to a non-US/non-DFW place is off-geography.
     remote_elsewhere = score_job(
         make_job(location="Remote - Europe", remote_type="remote"), DEFAULT_CONFIG
     )
     assert remote_us.score > remote_elsewhere.score
-    assert remote_elsewhere.dimensions["location"] == 6
+    assert remote_elsewhere.dimensions["location"] == -12
 
 
 def test_marketing_gtm_revenue_systems_scores_high():
