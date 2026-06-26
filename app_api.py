@@ -418,16 +418,22 @@ class JobAppAPI:
         job = database.get_job(int(job_id))
         if not job:
             return {"ok": False, "error": f"Job {job_id} not found"}
-        master = load_resume_master(self.config["resume_master"])
-        resume_text = render_ats_resume_text(job, master, self.config)
-        resume_document = build_resume_document(job, master, self.config)
-        pdfs = export_application_pdfs(
-            job,
-            resume_text,
-            self._cover_letter(database, job),
-            self.export_root,
-            resume_document=resume_document,
-        )
+        # Generation failures (PDF render, profile load, LLM) must surface as a
+        # clean error rather than raising — otherwise the caller's download step
+        # is skipped and nothing reaches ~/Downloads with no explanation.
+        try:
+            master = load_resume_master(self.config["resume_master"])
+            resume_text = render_ats_resume_text(job, master, self.config)
+            resume_document = build_resume_document(job, master, self.config)
+            pdfs = export_application_pdfs(
+                job,
+                resume_text,
+                self._cover_letter(database, job),
+                self.export_root,
+                resume_document=resume_document,
+            )
+        except Exception as exc:  # noqa: BLE001 - report, don't crash the bridge
+            return {"ok": False, "error": f"Could not build documents: {exc}"}
         return {"ok": True, **pdfs}
 
     def _download(self, source: str, *, open_after: bool = True) -> str:
